@@ -25,7 +25,7 @@ import {
 import { 
   Plus, Search, Trash2, Edit2, CheckCircle, Briefcase, GraduationCap, 
   X, LayoutGrid, List, PieChart, Calendar, 
-  BarChart2, Bell, LogOut, Loader2, Lock, Mail, Info, Twitter, Github, Linkedin, Instagram, CheckSquare, Clock, Send, Settings, Moon, Sun, Languages, Shield, FileText
+  BarChart2, Bell, LogOut, Loader2, Lock, Mail, Info, Twitter, Github, Linkedin, Instagram, CheckSquare, Clock, Send, Settings, Moon, Sun, Languages, Shield, FileText, Save
 } from 'lucide-react';
 
 // --- 1. FIREBASE CONFIGURATION ---
@@ -65,9 +65,7 @@ const STYLES = {
 };
 
 // --- CONSTANTS ---
-// Large Logo (with Text) for Login Screen
 const ALU_LARGE_LOGO_URL = "https://www.alueducation.com/wp-content/uploads/2023/05/ALU-logo-with-name-min.png";
-// Small Logo (Crest only) for Navbar, Browser Tab, and Notifications
 const ALU_SMALL_LOGO_URL = "https://www.alueducation.com/wp-content/uploads/2016/02/alu_logo_original.png";
 
 const DEFAULT_STEPS = { 
@@ -83,10 +81,11 @@ const TRANSLATIONS = {
     nextJob: "Next Job Deadline", dailyReport: "Daily Report", sendReport: "Send Daily Report",
     progress: "Overall Progress", checklist: "Application Checklist",
     settings: "Preferences", language: "Language", theme: "Theme", notifications: "Email Notifications",
-    save: "Save to Cloud", cancel: "Cancel", directions: "Directions",
+    save: "Save Changes", cancel: "Cancel", directions: "Directions",
     directionsText: "Fill in the details below. Use the checklist to track your progress.",
     welcome: "Welcome Back", join: "Join the Community", 
-    noNotifs: "No new notifications yet.", enableAlerts: "Enable System Alerts"
+    noNotifs: "No new notifications yet.", enableAlerts: "Enable System Alerts",
+    light: "Light", dark: "Dark", english: "English", french: "French"
   },
   fr: {
     dashboard: "Tableau de bord", scholarships: "Bourses", jobs: "Emplois", all: "Toutes les opportunités",
@@ -98,7 +97,8 @@ const TRANSLATIONS = {
     save: "Enregistrer", cancel: "Annuler", directions: "Instructions",
     directionsText: "Remplissez les détails ci-dessous. Utilisez la liste de contrôle pour suivre vos progrès.",
     welcome: "Bon retour", join: "Rejoindre la communauté",
-    noNotifs: "Aucune nouvelle notification.", enableAlerts: "Activer les alertes système"
+    noNotifs: "Aucune nouvelle notification.", enableAlerts: "Activer les alertes système",
+    light: "Clair", dark: "Sombre", english: "Anglais", french: "Français"
   }
 };
 
@@ -110,8 +110,8 @@ export default function App() {
   
   // Preferences - Initialize from LocalStorage for persistence
   const [theme, setTheme] = useState(() => localStorage.getItem('alu_theme') || 'light');
-  const [language, setLanguage] = useState('en');
-  const [emailEnabled, setEmailEnabled] = useState(false);
+  const [language, setLanguage] = useState(() => localStorage.getItem('alu_lang') || 'en');
+  const [emailEnabled, setEmailEnabled] = useState(() => localStorage.getItem('alu_email_notif') === 'true');
 
   // UI State
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -145,7 +145,7 @@ export default function App() {
 
   // --- EFFECTS ---
 
-  // Theme Effect with Persistence
+  // Theme Effect
   useEffect(() => {
     if (theme === 'dark') {
       document.documentElement.classList.add('dark');
@@ -154,6 +154,16 @@ export default function App() {
     }
     localStorage.setItem('alu_theme', theme);
   }, [theme]);
+
+  // Language Persistence
+  useEffect(() => {
+    localStorage.setItem('alu_lang', language);
+  }, [language]);
+
+  // Email Preference Persistence
+  useEffect(() => {
+    localStorage.setItem('alu_email_notif', emailEnabled);
+  }, [emailEnabled]);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
@@ -188,9 +198,16 @@ export default function App() {
     const interval = setInterval(() => {
       checkScheduledReminders(apps);
     }, 60000); 
-    checkScheduledReminders(apps); // Check immediately on load
+    checkScheduledReminders(apps); 
     return () => clearInterval(interval);
   }, [apps, emailEnabled]); 
+
+  // --- PREFERENCE HANDLER ---
+  const handleSavePreferences = (newSettings) => {
+    setTheme(newSettings.theme);
+    setLanguage(newSettings.language);
+    setEmailEnabled(newSettings.emailEnabled);
+  };
 
   // --- AUTH HANDLERS ---
   const handleAuth = async (e) => {
@@ -293,7 +310,6 @@ export default function App() {
 
   const checkScheduledReminders = (currentApps) => {
     const now = new Date();
-    // Trigger if it's 22:00 (10 PM) or later
     if (now.getHours() < 22) return;
 
     const lastReminder = localStorage.getItem('alu_last_reminder');
@@ -305,13 +321,11 @@ export default function App() {
       if (pendingApps.length > 0) {
         addNotification("Daily Reminder 🌙", `It's 10 PM! You have ${pendingApps.length} pending applications.`);
         
-        // If Email Automation is enabled, prompt user to send the report now
         if (emailEnabled) {
-           if(window.confirm(`It's 10PM! You have ${pendingApps.length} pending tasks. Would you like to generate your Daily Email Report now?`)) {
+           if(window.confirm(`It's 10PM! You have ${pendingApps.length} pending tasks. Generate Report?`)) {
              sendEmailReport(pendingApps);
            }
         }
-        
         localStorage.setItem('alu_last_reminder', today);
       }
     }
@@ -635,43 +649,13 @@ export default function App() {
 
         {/* PREFERENCES MODAL */}
         {isSettingsOpen && (
-          <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[70] p-4 backdrop-blur-sm animate-fade-in">
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-md overflow-hidden">
-              <div className="p-5 border-b dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-900">
-                <h3 className="font-bold text-lg dark:text-white flex items-center gap-2"><Settings size={20}/> {t('settings')}</h3>
-                <button onClick={() => setIsSettingsOpen(false)} className="dark:text-gray-400"><X size={20}/></button>
-              </div>
-              <div className="p-6 space-y-6">
-                <div className="flex justify-between items-center">
-                  <div className="flex items-center gap-3">
-                    {theme === 'light' ? <Sun size={20} className="text-orange-500"/> : <Moon size={20} className="text-blue-400"/>}
-                    <span className="dark:text-gray-200 font-medium">{t('theme')}</span>
-                  </div>
-                  <button onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')} className="px-3 py-1 rounded bg-gray-200 dark:bg-gray-700 dark:text-white text-xs font-bold uppercase">{theme}</button>
-                </div>
-                <div className="flex justify-between items-center">
-                  <div className="flex items-center gap-3">
-                    <Languages size={20} className="text-purple-500"/>
-                    <span className="dark:text-gray-200 font-medium">{t('language')}</span>
-                  </div>
-                  <select value={language} onChange={(e) => setLanguage(e.target.value)} className="p-1 rounded border dark:bg-gray-700 dark:text-white">
-                    <option value="en">English</option>
-                    <option value="fr">Français</option>
-                  </select>
-                </div>
-                <div className="flex justify-between items-center">
-                  <div className="flex items-center gap-3">
-                    <Mail size={20} className="text-red-500"/>
-                    <span className="dark:text-gray-200 font-medium">{t('notifications')}</span>
-                  </div>
-                  <div className="relative inline-block w-10 mr-2 align-middle select-none transition duration-200 ease-in">
-                    <input type="checkbox" checked={emailEnabled} onChange={() => setEmailEnabled(!emailEnabled)} className="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer"/>
-                    <label onClick={() => setEmailEnabled(!emailEnabled)} className={`toggle-label block overflow-hidden h-6 rounded-full cursor-pointer ${emailEnabled ? 'bg-green-400' : 'bg-gray-300'}`}></label>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+          <PreferencesModal 
+            isOpen={isSettingsOpen} 
+            onClose={() => setIsSettingsOpen(false)}
+            currentSettings={{ theme, language, emailEnabled }}
+            onSave={handleSavePreferences}
+            t={t}
+          />
         )}
 
         {/* MODALS */}
@@ -703,12 +687,95 @@ const StatCard = ({ label, value, icon, color }) => (
   </div>
 );
 
+// --- NEW PREFERENCES MODAL COMPONENT ---
+const PreferencesModal = ({ isOpen, onClose, currentSettings, onSave, t }) => {
+  const [localTheme, setLocalTheme] = useState(currentSettings.theme);
+  const [localLanguage, setLocalLanguage] = useState(currentSettings.language);
+  const [localEmail, setLocalEmail] = useState(currentSettings.emailEnabled);
+
+  useEffect(() => {
+    if (isOpen) {
+      setLocalTheme(currentSettings.theme);
+      setLocalLanguage(currentSettings.language);
+      setLocalEmail(currentSettings.emailEnabled);
+    }
+  }, [isOpen, currentSettings]);
+
+  const handleSave = () => {
+    onSave({ theme: localTheme, language: localLanguage, emailEnabled: localEmail });
+    onClose();
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[70] p-4 backdrop-blur-sm animate-fade-in">
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-md overflow-hidden">
+        <div className="p-5 border-b dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-900">
+          <h3 className="font-bold text-lg dark:text-white flex items-center gap-2"><Settings size={20}/> {t('settings')}</h3>
+          <button onClick={onClose} className="dark:text-gray-400"><X size={20}/></button>
+        </div>
+        <div className="p-6 space-y-6">
+          {/* THEME */}
+          <div className="flex justify-between items-center">
+            <div className="flex items-center gap-3">
+              {localTheme === 'light' ? <Sun size={20} className="text-orange-500"/> : <Moon size={20} className="text-blue-400"/>}
+              <span className="dark:text-gray-200 font-medium">{t('theme')}</span>
+            </div>
+            <button 
+              onClick={() => setLocalTheme(localTheme === 'light' ? 'dark' : 'light')} 
+              className="px-3 py-1 rounded bg-gray-200 dark:bg-gray-700 dark:text-white text-xs font-bold uppercase transition-colors hover:bg-gray-300 dark:hover:bg-gray-600"
+            >
+              {localTheme === 'light' ? t('light') : t('dark')}
+            </button>
+          </div>
+
+          {/* LANGUAGE */}
+          <div className="flex justify-between items-center">
+            <div className="flex items-center gap-3">
+              <Languages size={20} className="text-purple-500"/>
+              <span className="dark:text-gray-200 font-medium">{t('language')}</span>
+            </div>
+            <select 
+              value={localLanguage} 
+              onChange={(e) => setLocalLanguage(e.target.value)} 
+              className="p-1.5 rounded border dark:border-gray-600 dark:bg-gray-700 dark:text-white text-sm focus:ring-2 focus:ring-[#162A43]"
+            >
+              <option value="en">{t('english')}</option>
+              <option value="fr">{t('french')}</option>
+            </select>
+          </div>
+
+          {/* EMAIL NOTIFICATIONS */}
+          <div className="flex justify-between items-center">
+            <div className="flex items-center gap-3">
+              <Mail size={20} className="text-red-500"/>
+              <span className="dark:text-gray-200 font-medium">{t('notifications')}</span>
+            </div>
+            <div className="relative inline-block w-10 mr-2 align-middle select-none transition duration-200 ease-in">
+              <input type="checkbox" checked={localEmail} onChange={() => setLocalEmail(!localEmail)} className="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer top-0"/>
+              <label onClick={() => setLocalEmail(!localEmail)} className={`toggle-label block overflow-hidden h-6 rounded-full cursor-pointer ${localEmail ? 'bg-green-400' : 'bg-gray-300'}`}></label>
+            </div>
+          </div>
+
+          {/* ACTION BUTTONS */}
+          <div className="pt-4 border-t dark:border-gray-700 flex justify-end gap-3">
+            <button onClick={onClose} className={`px-4 py-2 rounded ${STYLES.btnOutline} text-sm`}>{t('cancel')}</button>
+            <button onClick={handleSave} className={`px-6 py-2 rounded font-bold text-sm ${STYLES.btnPrimary} flex items-center gap-2`}>
+              <Save size={16} /> {t('save')}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const AboutModal = ({ onClose }) => (
   <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[70] p-4 backdrop-blur-sm animate-fade-in">
     <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-lg overflow-hidden relative">
       <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-black dark:hover:text-white"><X size={24}/></button>
       <div className="bg-[#162A43] p-8 text-center text-white">
-        {/* USE SMALL LOGO FOR ABOUT MODAL */}
         <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center mx-auto mb-4 overflow-hidden p-1"><img src={ALU_SMALL_LOGO_URL} alt="ALU" className="w-full h-full object-cover rounded-full" /></div>
         <h2 className="text-2xl font-bold">ALU Opportunity Tracker</h2>
         <p className="text-gray-300 text-sm mt-2">Version 3.1.0</p>
