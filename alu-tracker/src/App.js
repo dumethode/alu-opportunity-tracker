@@ -25,7 +25,7 @@ import {
 import { 
   Plus, Search, Trash2, Edit2, CheckCircle, Briefcase, GraduationCap, 
   X, LayoutGrid, List, PieChart, Calendar, 
-  BarChart2, Bell, LogOut, Loader2, Lock, Mail, Info, Twitter, Github, Linkedin, Instagram, CheckSquare, Clock, Send, Settings, Moon, Sun, Languages
+  BarChart2, Bell, LogOut, Loader2, Lock, Mail, Info, Twitter, Github, Linkedin, Instagram, CheckSquare, Clock, Send, Settings, Moon, Sun, Languages, Shield, FileText
 } from 'lucide-react';
 
 // --- 1. FIREBASE CONFIGURATION ---
@@ -65,7 +65,10 @@ const STYLES = {
 };
 
 // --- CONSTANTS ---
-const ALU_LOGO_URL = "https://www.alueducation.com/wp-content/uploads/2023/05/ALU-logo-with-name-min.png";
+// Large Logo (with Text) for Login Screen
+const ALU_LARGE_LOGO_URL = "https://www.alueducation.com/wp-content/uploads/2023/05/ALU-logo-with-name-min.png";
+// Small Logo (Crest only) for Navbar, Browser Tab, and Notifications
+const ALU_SMALL_LOGO_URL = "https://www.alueducation.com/wp-content/uploads/2016/02/alu_logo_original.png";
 
 const DEFAULT_STEPS = { 
   research: false, networking: false, readCall: false, drafting: false, 
@@ -105,8 +108,8 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [apps, setApps] = useState([]);
   
-  // Preferences
-  const [theme, setTheme] = useState('light');
+  // Preferences - Initialize from LocalStorage for persistence
+  const [theme, setTheme] = useState(() => localStorage.getItem('alu_theme') || 'light');
   const [language, setLanguage] = useState('en');
   const [emailEnabled, setEmailEnabled] = useState(false);
 
@@ -142,13 +145,14 @@ export default function App() {
 
   // --- EFFECTS ---
 
-  // Theme Effect
+  // Theme Effect with Persistence
   useEffect(() => {
     if (theme === 'dark') {
       document.documentElement.classList.add('dark');
     } else {
       document.documentElement.classList.remove('dark');
     }
+    localStorage.setItem('alu_theme', theme);
   }, [theme]);
 
   useEffect(() => {
@@ -186,7 +190,7 @@ export default function App() {
     }, 60000); 
     checkScheduledReminders(apps); // Check immediately on load
     return () => clearInterval(interval);
-  }, [apps, emailEnabled]); // Re-run if email preference changes
+  }, [apps, emailEnabled]); 
 
   // --- AUTH HANDLERS ---
   const handleAuth = async (e) => {
@@ -283,7 +287,7 @@ export default function App() {
     setNotifications(prev => [newNotif, ...prev]);
     // Show System Notification
     if (Notification.permission === 'granted') {
-      new Notification(title, { body, icon: ALU_LOGO_URL });
+      new Notification(title, { body, icon: ALU_SMALL_LOGO_URL });
     }
   };
 
@@ -373,7 +377,8 @@ export default function App() {
         <div className="flex-1 flex flex-col items-center justify-center px-4 py-12">
           <div className="bg-white dark:bg-gray-800 p-8 rounded-xl shadow-xl w-full max-w-md border border-gray-100 dark:border-gray-700">
             <div className="flex justify-center mb-6">
-              <img src={ALU_LOGO_URL} alt="ALU Logo" className="h-16 object-contain bg-white rounded px-2" />
+              {/* USE LARGE LOGO FOR LOGIN */}
+              <img src={ALU_LARGE_LOGO_URL} alt="ALU Logo" className="h-16 object-contain bg-white rounded px-2" />
             </div>
             <h2 className="text-2xl font-bold text-center text-[#162A43] dark:text-[#BFA15F] mb-1">{authMode === 'login' ? t('welcome') : t('join')}</h2>
             
@@ -428,7 +433,8 @@ export default function App() {
       <header className="sticky top-0 z-50 shadow-md" style={{ backgroundColor: THEME.primary }}>
         <div className="max-w-7xl mx-auto px-4 py-3 flex flex-col md:flex-row justify-between items-center gap-4">
           <div className="flex items-center space-x-3">
-            <img src={ALU_LOGO_URL} alt="ALU Logo" className="h-10 w-auto object-contain bg-white rounded px-2 py-1" />
+            {/* USE SMALL LOGO FOR NAVBAR */}
+            <img src={ALU_SMALL_LOGO_URL} alt="ALU Logo" className="h-10 w-auto object-contain bg-white rounded px-2 py-1" />
             <div>
               <h1 className="text-xl font-bold text-white tracking-wide leading-none">ALU TRACKER</h1>
               <div className="flex items-center gap-2 mt-0.5">
@@ -437,12 +443,12 @@ export default function App() {
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <button onClick={() => setIsAboutOpen(true)} className="text-white/70 hover:text-white" title="About"><Info size={20} /></button>
-            <button onClick={() => setIsSettingsOpen(true)} className="text-white/70 hover:text-white" title="Settings"><Settings size={20} /></button>
+            <button onClick={() => setIsAboutOpen(true)} className="text-white/70 hover:text-white flex items-center justify-center" title="About"><Info size={20} /></button>
+            <button onClick={() => setIsSettingsOpen(true)} className="text-white/70 hover:text-white flex items-center justify-center" title="Settings"><Settings size={20} /></button>
             
             {/* NOTIFICATION CENTER */}
             <div className="relative">
-              <button onClick={() => setShowNotifDropdown(!showNotifDropdown)} className="text-white/70 hover:text-white relative" title="Notifications">
+              <button onClick={() => setShowNotifDropdown(!showNotifDropdown)} className="text-white/70 hover:text-white relative flex items-center justify-center" title="Notifications">
                 <Bell size={20} />
                 {notifications.filter(n => !n.read).length > 0 && <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full"></span>}
               </button>
@@ -469,7 +475,7 @@ export default function App() {
               )}
             </div>
 
-            <button onClick={handleLogout} className="text-white/70 hover:text-red-300" title="Logout"><LogOut size={20} /></button>
+            <button onClick={handleLogout} className="text-white/70 hover:text-red-300 flex items-center justify-center" title="Logout"><LogOut size={20} /></button>
             <button onClick={() => setIsFormOpen(true)} className={`ml-2 px-4 py-2 rounded font-semibold text-sm ${STYLES.btnAccent}`}><Plus size={16} /> {t('newOpp')}</button>
           </div>
         </div>
@@ -702,7 +708,8 @@ const AboutModal = ({ onClose }) => (
     <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-lg overflow-hidden relative">
       <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-black dark:hover:text-white"><X size={24}/></button>
       <div className="bg-[#162A43] p-8 text-center text-white">
-        <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center mx-auto mb-4 overflow-hidden p-1"><img src={ALU_LOGO_URL} alt="ALU" className="w-full h-full object-cover rounded-full" /></div>
+        {/* USE SMALL LOGO FOR ABOUT MODAL */}
+        <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center mx-auto mb-4 overflow-hidden p-1"><img src={ALU_SMALL_LOGO_URL} alt="ALU" className="w-full h-full object-cover rounded-full" /></div>
         <h2 className="text-2xl font-bold">ALU Opportunity Tracker</h2>
         <p className="text-gray-300 text-sm mt-2">Version 3.1.0</p>
       </div>
@@ -730,11 +737,23 @@ const PrivacyModal = ({ onClose }) => (
   <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[70] p-4 backdrop-blur-sm animate-fade-in">
     <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-lg overflow-hidden relative flex flex-col max-h-[80vh]">
       <div className="p-5 border-b dark:border-gray-700 flex justify-between items-center">
-        <h3 className="font-bold text-lg dark:text-white">Privacy Policy</h3><button onClick={onClose} className="dark:text-white"><X size={20}/></button>
+        <h3 className="font-bold text-lg dark:text-white flex items-center gap-2"><Shield size={20}/> Privacy Policy</h3><button onClick={onClose} className="dark:text-white"><X size={20}/></button>
       </div>
-      <div className="p-6 overflow-y-auto text-sm text-gray-600 dark:text-gray-300 space-y-4">
+      <div className="p-6 overflow-y-auto text-sm text-gray-600 dark:text-gray-300 space-y-4 leading-relaxed">
         <p><strong>Last Updated: November 2025</strong></p>
-        <p>We collect your name and email to provide the tracking service. Data is secured via Firebase.</p>
+        <p>Your privacy is important to us. This policy outlines how ALU Opportunity Tracker collects, uses, and protects your information.</p>
+        
+        <h4 className="font-bold text-[#162A43] dark:text-white">1. Information Collection</h4>
+        <p>We collect limited personal information including your name, email address, and phone number during registration. We also store the application data you voluntarily input (scholarship details, deadlines, notes).</p>
+
+        <h4 className="font-bold text-[#162A43] dark:text-white">2. Use of Data</h4>
+        <p>Your data is used exclusively to provide the tracking service, authenticate your identity, and send requested notifications. We do not sell or share your personal data with third parties.</p>
+
+        <h4 className="font-bold text-[#162A43] dark:text-white">3. Data Security</h4>
+        <p>All data is stored securely using Google Firebase Firestore with encrypted transmission. User authentication is handled via Firebase Auth to ensure secure access.</p>
+
+        <h4 className="font-bold text-[#162A43] dark:text-white">4. Your Rights</h4>
+        <p>You have the right to access, edit, or delete your data at any time. Deleting an application removes it permanently from our database.</p>
       </div>
     </div>
   </div>
@@ -744,11 +763,23 @@ const TermsModal = ({ onClose }) => (
   <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[70] p-4 backdrop-blur-sm animate-fade-in">
     <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-lg overflow-hidden relative flex flex-col max-h-[80vh]">
       <div className="p-5 border-b dark:border-gray-700 flex justify-between items-center">
-        <h3 className="font-bold text-lg dark:text-white">Terms of Service</h3><button onClick={onClose} className="dark:text-white"><X size={20}/></button>
+        <h3 className="font-bold text-lg dark:text-white flex items-center gap-2"><FileText size={20}/> Terms of Service</h3><button onClick={onClose} className="dark:text-white"><X size={20}/></button>
       </div>
-      <div className="p-6 overflow-y-auto text-sm text-gray-600 dark:text-gray-300 space-y-4">
+      <div className="p-6 overflow-y-auto text-sm text-gray-600 dark:text-gray-300 space-y-4 leading-relaxed">
         <p><strong>Last Updated: November 2025</strong></p>
-        <p>By using ALU Opportunity Tracker, you agree to use it for lawful purposes.</p>
+        <p>By accessing or using ALU Opportunity Tracker, you agree to be bound by these Terms.</p>
+
+        <h4 className="font-bold text-[#162A43] dark:text-white">1. Acceptance of Terms</h4>
+        <p>By creating an account, you confirm that you will use this service for lawful purposes related to tracking educational and professional opportunities.</p>
+
+        <h4 className="font-bold text-[#162A43] dark:text-white">2. User Accounts</h4>
+        <p>You are responsible for maintaining the confidentiality of your password and account. You agree to notify us immediately of any unauthorized use of your account.</p>
+
+        <h4 className="font-bold text-[#162A43] dark:text-white">3. Content Ownership</h4>
+        <p>The application data you enter belongs to you. The platform code and design remain the intellectual property of the developer.</p>
+
+        <h4 className="font-bold text-[#162A43] dark:text-white">4. Termination</h4>
+        <p>We may terminate or suspend access to our service immediately, without prior notice, for any reason whatsoever, including without limitation if you breach the Terms.</p>
       </div>
     </div>
   </div>
