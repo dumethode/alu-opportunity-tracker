@@ -21,7 +21,8 @@ import {
   query, 
   orderBy 
 } from "firebase/firestore";
-// Removed static import of jsPDF to prevent build errors
+// REMOVED: import { jsPDF } from "jspdf"; (Fixed build error)
+
 import { 
   Plus, Search, Trash2, Edit2, CheckCircle, Briefcase, GraduationCap, 
   X, LayoutGrid, List, PieChart, 
@@ -73,7 +74,7 @@ const DEFAULT_STEPS = {
   docsReady: false, referees: false, finalReview: false, submitted: false 
 };
 
-// METHODE'S CV DATA (For AI Resume Builder)
+// METHODE'S CV DATA
 const MY_PROFILE = {
   name: "Methode Duhujubumwe",
   contact: "Kigali, Rwanda | +250 790 265 770 | linkedin.com/in/dumethode",
@@ -170,8 +171,6 @@ export default function App() {
   // Modal States
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isAboutOpen, setIsAboutOpen] = useState(false);
-  const [isPrivacyOpen, setIsPrivacyOpen] = useState(false);
-  const [isTermsOpen, setIsTermsOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isToolsOpen, setIsToolsOpen] = useState(false);
   const [selectedAppForTools, setSelectedAppForTools] = useState(null);
@@ -194,6 +193,15 @@ export default function App() {
   const t = (key) => TRANSLATIONS[language][key] || key;
 
   // --- EFFECTS ---
+  useEffect(() => {
+    // Load PDF Script dynamically
+    const script = document.createElement('script');
+    script.src = "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js";
+    script.async = true;
+    document.body.appendChild(script);
+    return () => { document.body.removeChild(script); }
+  }, []);
+
   useEffect(() => {
     if (theme === 'dark') document.documentElement.classList.add('dark');
     else document.documentElement.classList.remove('dark');
@@ -558,23 +566,14 @@ const DocToolsModal = ({ isOpen, onClose, appData, t }) => {
 
   const downloadPDF = () => {
     if (!window.jspdf) {
-        const script = document.createElement('script');
-        script.src = "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js";
-        script.onload = () => {
-            const { jsPDF } = window.jspdf;
-            const doc = new jsPDF();
-            const lines = doc.splitTextToSize(generatedContent, 180);
-            doc.text(lines, 10, 10);
-            doc.save(`${activeTool}_${appData.institution}.pdf`);
-        };
-        document.body.appendChild(script);
-    } else {
-        const { jsPDF } = window.jspdf;
-        const doc = new jsPDF();
-        const lines = doc.splitTextToSize(generatedContent, 180);
-        doc.text(lines, 10, 10);
-        doc.save(`${activeTool}_${appData.institution}.pdf`);
+        alert("PDF Generator loading...");
+        return;
     }
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    const lines = doc.splitTextToSize(generatedContent, 180);
+    doc.text(lines, 10, 10);
+    doc.save(`${activeTool}_${appData.institution}.pdf`);
   };
 
   return (
