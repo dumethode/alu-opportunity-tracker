@@ -9,7 +9,7 @@ import {
 import { 
   Plus, Search, Trash2, Edit2, CheckCircle, Briefcase, GraduationCap, 
   X, LayoutGrid, List, PieChart, User,
-  BarChart2, Bell, LogOut, Loader2, Lock, Mail, Info, Twitter, Github, Linkedin, Instagram, CheckSquare, Send, Settings, Moon, Sun, Languages, Shield, FileText, Save, Link as LinkIcon, Image as ImageIcon, Wrench, FileText as DocumentIcon, PenTool, Download, Eye, Wand2
+  BarChart2, Bell, LogOut, Loader2, Lock, Mail, Info, Twitter, Github, Linkedin, Instagram, CheckSquare, Send, Settings, Moon, Sun, Languages, Shield, FileText, Save, Link as LinkIcon, Image as ImageIcon, Wrench, FileText as DocumentIcon, PenTool, Download, Eye, Wand2, Clock, Calendar
 } from 'lucide-react';
 
 // --- 1. FIREBASE CONFIGURATION ---
@@ -24,7 +24,13 @@ const firebaseConfig = {
   measurementId: "G-E4W7N50DK4"
 };
 
-const app = initializeApp(firebaseConfig);
+// Initialize Firebase
+let app;
+try {
+  app = initializeApp(firebaseConfig);
+} catch (error) {
+  console.log("Firebase already initialized");
+}
 const auth = getAuth(app);
 const db = getFirestore(app);
 
@@ -66,19 +72,20 @@ const INITIAL_PROFILE = {
     { school: "ALX Africa", degree: "Software Engineering Certificate (Backend)", year: "May 2023 - Oct 2024", grade: "", coursework: "Systems development, database management, technical problem-solving" }
   ],
   experience: [
-    { role: "Program Coordinator & Finance Intern", company: "Bible Society of Rwanda", date: "May 2024 - Feb 2025", description: "• Managed financial operations for 50+ partner organizations with 100% accuracy.\n• Developed Excel-based dashboards reducing report preparation time by 40%.\n• Established systematic filing systems for financial documents." },
-    { role: "Customer Support & Call Center Agent", company: "BBOXX Rwanda", date: "Mar 2025 - Sep 2025", description: "• Processed over 80 daily payment transactions with 99% accuracy.\n• Created user-friendly support guides reducing customer complaints by 30%.\n• Reconciled daily transactions and resolved payment discrepancies." },
-    { role: "Computer Applications Learning Assistant", company: "Kepler College", date: "May 2023 - Apr 2024", description: "• Trained 100+ students on Microsoft Office and Google Workspace.\n• Created video tutorials and step-by-step guides." }
+    { role: "Program Coordinator & Finance Intern", company: "Bible Society of Rwanda", date: "May 2024 - Feb 2025", description: "• Managed financial operations for 50+ partner organizations with 100% accuracy.\n• Developed Excel-based dashboards reducing report preparation time by 40%.\n• Designed and implemented standardized data collection templates improving data quality by 35%.\n• Established systematic filing systems for financial documents ensuring audit compliance and reducing retrieval time by 50%." },
+    { role: "Customer Support & Call Center Agent", company: "BBOXX Rwanda", date: "Mar 2025 - Sep 2025", description: "• Processed over 80 daily payment transactions with 99% accuracy while managing customer accounts.\n• Created user-friendly support guides and video tutorials reducing customer complaints by 30%.\n• Reconciled daily transactions and resolved payment discrepancies for Finance teams.\n• Facilitated cross-departmental communication reducing response time by 20%." },
+    { role: "Computer Applications Learning Assistant", company: "Kepler College", date: "May 2023 - Apr 2024", description: "• Trained 100+ students on Microsoft Office and Google Workspace achieving 90% proficiency.\n• Created video tutorials and step-by-step guides reducing support requests by 40%.\n• Maintained student performance databases using Excel to track achievement trends." },
+    { role: "Event Operations Coordinator (Volunteer)", company: "Unleash Rwanda", date: "Dec 2023 - Jan 2024", description: "• Coordinated logistics for international innovation summit with 300+ participants from 45 countries.\n• Managed vendor contracts, registrations, and facility operations delivering seamless event experience.\n• Analyzed operational data to prepare post-event evaluation reports." }
   ],
   volunteering: [
-    { role: "Co-Founder & Program Manager", company: "Raise Them Foundation", date: "Feb 2023 - Present", description: "• Co-founded scholarship program sponsoring high school students.\n• Manage program budgets and financial forecasting." },
-    { role: "Founder & Community Mobilizer", company: "Turye Neza Youth Club", date: "Jan 2021 - Present", description: "• Mobilized 20+ youth volunteers to establish vegetable gardens.\n• Trained 15 families in gardening techniques." }
+    { role: "Co-Founder & Program Manager", company: "Raise Them Foundation", date: "Feb 2023 - Present", description: "• Co-founded a scholarship program sponsoring high school students with tuition and mentorship.\n• Developed fundraising strategies and built partnerships with schools and donors.\n• Managed program budgets and financial forecasting while preparing quarterly reports." },
+    { role: "Founder & Community Mobilizer", company: "Turye Neza Youth Club", date: "Jan 2021 - Present", description: "• Mobilized 20+ youth volunteers to establish vegetable gardens for vulnerable families.\n• Partnered with local authorities to implement sustainable agriculture programs.\n• Trained 15 families in gardening techniques and nutritional meal planning." }
   ],
   awards: "Aspire Leaders Program Alumni (2024) | School Leadership Award (G.S. Rilima 2021)",
-  skills: "Project Management, Financial Modeling, QuickBooks, Excel/Data Studio, SQL, HTML/CSS/JS, Stakeholder Management, Training & Facilitation"
+  skills: "Project Management, Financial Modeling, QuickBooks, Excel/Data Studio, SQL, HTML/CSS/JS, Stakeholder Management, Training & Facilitation",
+  customSections: [] 
 };
 
-// --- COVER LETTER TEMPLATE ---
 const COVER_LETTER_TEMPLATE = `[Date Today]
 
 Hiring Team,
@@ -182,6 +189,15 @@ export default function App() {
 
   // --- EFFECTS ---
   useEffect(() => {
+    // Load PDF Script dynamically
+    const script = document.createElement('script');
+    script.src = "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js";
+    script.async = true;
+    document.body.appendChild(script);
+    return () => { document.body.removeChild(script); }
+  }, []);
+
+  useEffect(() => {
     if (theme === 'dark') document.documentElement.classList.add('dark');
     else document.documentElement.classList.remove('dark');
     localStorage.setItem('alu_theme', theme);
@@ -198,7 +214,9 @@ export default function App() {
         // Fetch User Profile
         const docRef = doc(db, "users", currentUser.uid, "data", "profile");
         const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) setUserProfile(docSnap.data());
+        if (docSnap.exists()) {
+            setUserProfile({...INITIAL_PROFILE, ...docSnap.data()});
+        }
       } else {
         setUser(null);
       }
@@ -220,7 +238,7 @@ export default function App() {
   // Notification Timer
   useEffect(() => {
     const interval = setInterval(() => checkScheduledReminders(apps), 60000); 
-    checkScheduledReminders(apps); 
+    checkScheduledReminders(apps); // Check once on mount
     return () => clearInterval(interval);
   }, [apps, emailEnabled]);
 
@@ -229,6 +247,9 @@ export default function App() {
     setTheme(newSettings.theme);
     setLanguage(newSettings.language);
     setEmailEnabled(newSettings.emailEnabled);
+    localStorage.setItem('alu_theme', newSettings.theme);
+    localStorage.setItem('alu_lang', newSettings.language);
+    localStorage.setItem('alu_email_notif', newSettings.emailEnabled);
   };
 
   const handleAuth = async (e) => {
@@ -287,6 +308,11 @@ export default function App() {
     setIsToolsOpen(true);
   };
 
+  const handleLogout = () => {
+    setApps([]); 
+    signOut(auth);
+  };
+
   const addNotification = (title, body) => {
     setNotifications(prev => [{ id: Date.now(), title, body, time: new Date().toLocaleTimeString(), read: false }, ...prev]);
     if (Notification.permission === 'granted') new Notification(title, { body, icon: ALU_SMALL_LOGO_URL });
@@ -294,9 +320,12 @@ export default function App() {
 
   const checkScheduledReminders = (currentApps) => {
     const now = new Date();
+    // ONLY trigger at 22:00 (10 PM) or later
     if (now.getHours() < 22) return;
+
     const lastReminder = localStorage.getItem('alu_last_reminder');
     const today = now.toDateString();
+
     if (lastReminder !== today) {
       const pendingApps = currentApps.filter(a => ['In Progress', 'Researching', 'Drafting'].includes(a.status));
       if (pendingApps.length > 0) {
@@ -332,7 +361,6 @@ export default function App() {
 
   const closeForm = () => { setIsFormOpen(false); setEditingId(null); setFormData(initialFormState()); };
   const handleChecklistChange = (key) => { setFormData(prev => ({ ...prev, steps: { ...prev.steps, [key]: !prev.steps[key] } })); };
-  const getSyncedSteps = (status, currentSteps) => { if (['Submitted', 'Accepted', 'Rejected'].includes(status)) { const c={}; Object.keys(currentSteps).forEach(k=>c[k]=true); return c;} return currentSteps; };
   const getProgress = (app) => { if (['Submitted', 'Accepted', 'Rejected'].includes(app.status)) return 100; const s=app.steps||{}; const k=Object.keys(s); if(!k.length)return 0; return Math.round((k.filter(x=>s[x]).length/k.length)*100); };
   const getFormProgress = () => { const s=formData.steps; const k=Object.keys(s); return Math.round((k.filter(x=>s[x]).length/k.length)*100); }
 
@@ -352,7 +380,7 @@ export default function App() {
             <div className="flex justify-center mb-6"><img src={ALU_LARGE_LOGO_URL} alt="ALU" className="h-16 object-contain bg-white rounded px-2" /></div>
             <h2 className="text-2xl font-bold text-center text-[#162A43] dark:text-[#BFA15F] mb-1">{authMode === 'login' ? t('welcome') : t('join')}</h2>
             {verificationSent && <div className="bg-green-50 text-green-700 p-4 rounded mb-6 text-sm font-bold">Verification link sent. Check your inbox.</div>}
-            {authError && <div className="bg-red-50 text-red-600 p-4 rounded mb-6 text-sm font-medium">{authError}</div>}
+            {authError && <div className="bg-red-50 text-red-600 p-4 rounded mb-6 text-sm font-medium flex items-start gap-2 border border-red-200"><div>{authError}</div></div>}
             <form onSubmit={handleAuth} className="space-y-4">
               {authMode === 'signup' && (<>
                   <div className="grid grid-cols-2 gap-3"><div><label className={STYLES.label}>First Name</label><input required className={STYLES.input} value={firstName} onChange={e => setFirstName(e.target.value)} /></div><div><label className={STYLES.label}>Surname</label><input required className={STYLES.input} value={surname} onChange={e => setSurname(e.target.value)} /></div></div>
@@ -376,33 +404,34 @@ export default function App() {
      return true;
   });
 
-  const pendingApps = apps.filter(a => !['Submitted', 'Accepted', 'Rejected'].includes(a.status));
-  const nextScholarship = pendingApps.filter(a => a.type === 'Scholarship' && a.deadline).sort((a,b) => new Date(a.deadline) - new Date(b.deadline))[0];
-  const nextJob = pendingApps.filter(a => a.type === 'Job' && a.deadline).sort((a,b) => new Date(a.deadline) - new Date(b.deadline))[0];
+  const nextScholarship = filteredApps.filter(a => a.type === 'Scholarship' && a.deadline && new Date(a.deadline) >= new Date().setHours(0,0,0,0)).sort((a,b) => new Date(a.deadline) - new Date(b.deadline))[0];
+  const nextJob = filteredApps.filter(a => a.type === 'Job' && a.deadline && new Date(a.deadline) >= new Date().setHours(0,0,0,0)).sort((a,b) => new Date(a.deadline) - new Date(b.deadline))[0];
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 text-slate-800 dark:text-gray-100 font-sans flex flex-col transition-colors duration-300">
       <header className="sticky top-0 z-50 shadow-md" style={{ backgroundColor: THEME.primary }}>
         <div className="max-w-7xl mx-auto px-4 py-3 flex flex-col md:flex-row justify-between items-center gap-4">
-          <div className="flex items-center space-x-3"><img src={ALU_SMALL_LOGO_URL} className="h-10 bg-white rounded px-2" alt="Logo"/><h1 className="text-xl font-bold text-white hidden md:block">ALU TRACKER</h1></div>
-          <div className="flex gap-3">
-            <button onClick={() => setIsAboutOpen(true)} className="text-white hover:opacity-80"><Info/></button>
-            <button onClick={() => setIsSettingsOpen(true)} className="text-white hover:opacity-80"><Settings/></button>
-            <div className="relative">
-              <button onClick={() => setShowNotifDropdown(!showNotifDropdown)} className="text-white hover:opacity-80 relative"><Bell/>{notifications.filter(n => !n.read).length > 0 && <span className="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full"></span>}</button>
-              {showNotifDropdown && (<div className="absolute right-0 mt-2 w-80 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 z-50 overflow-hidden"><div className="p-3 border-b dark:border-gray-700 flex justify-between"><span>Notifications</span><button onClick={requestNotificationPermission} className="text-xs text-blue-500">Enable</button></div><div className="max-h-64 overflow-y-auto">{notifications.length === 0 ? <div className="p-4 text-center text-xs text-gray-500">No new notifications</div> : notifications.map(n => <div key={n.id} className="p-3 border-b dark:border-gray-700 text-sm"><p className="font-bold">{n.title}</p><p className="text-xs">{n.body}</p></div>)}</div></div>)}
+          <div className="flex items-center space-x-3"><img src={ALU_SMALL_LOGO_URL} alt="ALU Logo" className="h-10 w-auto object-contain bg-white rounded px-2 py-1" />
+            <div>
+              <h1 className="text-xl font-bold text-white tracking-wide leading-none">ALU TRACKER</h1>
+              <div className="flex items-center gap-2 mt-0.5">
+                <span className="text-[10px] text-white font-bold uppercase bg-white/20 px-1.5 rounded">{user.displayName || 'User'}</span>
+                <span className="text-[10px] text-gray-300 uppercase tracking-widest">ID: {user.uid.slice(0,6)}...</span>
+              </div>
             </div>
-            <button onClick={() => { setApps([]); signOut(auth); }} className="text-white hover:opacity-80"><LogOut/></button>
-            <button onClick={() => setIsFormOpen(true)} className={STYLES.btnAccent}><Plus size={16}/> New</button>
+          </div>
+          <div className="flex items-center gap-3">
+            <button onClick={() => setIsAboutOpen(true)} className="text-white/70 hover:text-white flex items-center justify-center p-2" title="About"><Info size={20} /></button>
+            <button onClick={() => setIsSettingsOpen(true)} className="text-white/70 hover:text-white flex items-center justify-center p-2" title="Settings"><Settings size={20} /></button>
+            <div className="relative">
+              <button onClick={() => setShowNotifDropdown(!showNotifDropdown)} className="text-white/70 hover:text-white relative flex items-center justify-center p-2" title="Notifications"><Bell size={20} />{notifications.filter(n => !n.read).length > 0 && <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>}</button>
+              {showNotifDropdown && (<div className="absolute right-0 mt-2 w-80 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 z-50 overflow-hidden"><div className="p-3 border-b dark:border-gray-700 font-bold text-sm flex justify-between"><span>Notifications</span><button onClick={requestNotificationPermission} className="text-xs text-blue-500 hover:underline">{t('enableAlerts')}</button></div><div className="max-h-64 overflow-y-auto">{notifications.length === 0 ? <div className="p-4 text-center text-gray-500 text-xs">{t('noNotifs')}</div> : notifications.map(n => <div key={n.id} className="p-3 border-b dark:border-gray-700 text-sm"><p className="font-bold">{n.title}</p><p className="text-xs">{n.body}</p></div>)}</div></div>)}
+            </div>
+            <button onClick={handleLogout} className="text-white/70 hover:text-red-300 flex items-center justify-center p-2" title="Logout"><LogOut size={20} /></button>
+            <button onClick={() => setIsFormOpen(true)} className={`ml-2 px-4 py-2 rounded font-semibold text-sm ${STYLES.btnAccent}`}><Plus size={16} /> {t('newOpp')}</button>
           </div>
         </div>
-        <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 overflow-x-auto">
-          <div className="max-w-7xl mx-auto px-4 flex">
-            {['dashboard', 'scholarships', 'jobs', 'profile', 'all'].map(tab => (
-              <button key={tab} onClick={() => setActiveTab(tab)} className={`px-6 py-3 font-semibold text-sm capitalize whitespace-nowrap ${activeTab === tab ? STYLES.tabActive : STYLES.tabInactive}`}>{t(tab)}</button>
-            ))}
-          </div>
-        </div>
+        <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 overflow-x-auto"><div className="max-w-7xl mx-auto px-4 flex">{['dashboard', 'scholarships', 'jobs', 'profile', 'all'].map(tab => (<button key={tab} onClick={() => setActiveTab(tab)} className={`px-6 py-3 font-semibold text-sm capitalize whitespace-nowrap ${activeTab === tab ? STYLES.tabActive : STYLES.tabInactive}`}>{t(tab)}</button>))}</div></div>
       </header>
 
       <main className="max-w-7xl mx-auto px-4 py-8 flex-1 w-full">
@@ -410,10 +439,11 @@ export default function App() {
           <ProfileBuilder profile={userProfile} onSave={handleSaveProfile} />
         ) : (
           <>
-            {activeTab === 'dashboard' && <DashboardStats apps={apps} t={t} emailEnabled={emailEnabled} onSendReport={sendEmailReport}/>}
+            {activeTab === 'dashboard' && <DashboardStats apps={apps} t={t} emailEnabled={emailEnabled} onSendReport={sendEmailReport} nextScholarship={nextScholarship} nextJob={nextJob}/>}
             
+            {/* MAIN GRID */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
-              {apps.filter(a => (activeTab === 'dashboard' || activeTab === 'all' || a.type.toLowerCase().includes(activeTab.slice(0,3))) && a.institution.toLowerCase().includes(searchTerm.toLowerCase())).map(app => (
+              {filteredApps.map(app => (
                 <div key={app.id} className={STYLES.card + " p-4 flex flex-col relative group"}>
                   <div className="absolute top-2 left-2 z-10"><button onClick={() => openTools(app)} className="bg-white dark:bg-gray-700 p-2 rounded-full shadow hover:bg-gray-100 text-[#162A43] dark:text-[#BFA15F]" title="Tools"><Wrench size={16}/></button></div>
                   <div className="h-32 bg-gray-100 dark:bg-gray-700 relative flex items-center justify-center overflow-hidden">
@@ -423,6 +453,7 @@ export default function App() {
                   <div className="mt-4">
                     <h3 className="font-bold text-lg text-[#162A43] dark:text-white">{app.institution}</h3>
                     <p className="text-sm text-gray-600 dark:text-gray-300">{app.program}</p>
+                    {app.startDate && <p className="text-xs text-gray-500 mt-1 flex items-center gap-1"><Clock size={12}/> Started: {app.startDate}</p>}
                     <div className="flex justify-between items-center mt-4">
                       <span className="text-xs bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">{app.type}</span>
                       <div className="flex gap-2">
@@ -431,13 +462,14 @@ export default function App() {
                       </div>
                     </div>
                   </div>
+                  <div className="mt-3 w-full bg-gray-100 dark:bg-gray-700 rounded-full h-1.5"><div className="h-1.5 bg-green-500 rounded-full" style={{width: `${getProgress(app)}%`}}></div></div>
+                  <div className="text-right text-xs mt-1 text-gray-500">{getProgress(app)}% Complete</div>
                 </div>
               ))}
             </div>
           </>
         )}
 
-        {/* MODALS */}
         {isFormOpen && <FormModal isOpen={isFormOpen} onClose={() => setIsFormOpen(false)} editingId={editingId} formData={formData} setFormData={setFormData} onSubmit={handleSaveApp} isSubmitting={isSubmitting} handleChecklistChange={handleChecklistChange} getFormProgress={getFormProgress} t={t} />}
         {isToolsOpen && selectedApp && <ToolsModal appData={selectedApp} userProfile={userProfile} onClose={() => setIsToolsOpen(false)} t={t} />}
         {isSettingsOpen && <PreferencesModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} currentSettings={{ theme, language, emailEnabled }} onSave={handleSavePreferences} t={t} />}
@@ -450,6 +482,13 @@ export default function App() {
         <div className="max-w-7xl mx-auto px-4 py-8 flex flex-col md:flex-row justify-between items-center gap-4 text-sm text-gray-500 dark:text-gray-400">
            <div><span className="font-bold text-[#162A43] dark:text-[#BFA15F]">ALU Opportunity Tracker</span> &copy; {new Date().getFullYear()}</div>
            <div className="flex items-center gap-6">
+              <span className="mr-4">Developed by <span className="font-bold text-[#162A43] dark:text-[#BFA15F]">dumethode</span></span>
+              <div className="flex gap-2 mr-4">
+                 <a href="https://twitter.com/dumethode" target="_blank" rel="noopener noreferrer" className="hover:text-[#1DA1F2]"><Twitter size={16}/></a>
+                 <a href="https://github.com/dumethode" target="_blank" rel="noopener noreferrer" className="hover:text-[#162A43] dark:hover:text-white"><Github size={16}/></a>
+                 <a href="https://linkedin.com/in/dumethode" target="_blank" rel="noopener noreferrer" className="hover:text-[#0077B5]"><Linkedin size={16}/></a>
+                 <a href="https://instagram.com/dumethode" target="_blank" rel="noopener noreferrer" className="hover:text-[#E1306C]"><Instagram size={16}/></a>
+              </div>
               <button onClick={() => setIsAboutOpen(true)} className="hover:text-[#DB2B39]">About</button>
               <button onClick={() => setIsPrivacyOpen(true)} className="hover:text-[#DB2B39]">Privacy</button>
               <button onClick={() => setIsTermsOpen(true)} className="hover:text-[#DB2B39]">Terms</button>
@@ -462,7 +501,7 @@ export default function App() {
 
 // --- SUB-COMPONENTS ---
 
-const DashboardStats = ({ apps, t, emailEnabled, onSendReport }) => {
+const DashboardStats = ({ apps, t, emailEnabled, onSendReport, nextScholarship, nextJob }) => {
   const total = apps.length;
   const submitted = apps.filter(a => a.status === 'Submitted').length;
   const pending = apps.filter(a => ['In Progress', 'Drafting'].includes(a.status)).length;
@@ -475,6 +514,10 @@ const DashboardStats = ({ apps, t, emailEnabled, onSendReport }) => {
         <StatCard label={t('submitted')} value={submitted} icon={<CheckCircle />} color="border-l-4 border-green-500" />
         <StatCard label={t('pending')} value={pending} icon={<PieChart />} color="border-l-4 border-[#BFA15F]" />
         <StatCard label={t('completed')} value={`${completed}%`} icon={<BarChart2 />} color="border-l-4 border-[#DB2B39]" />
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="bg-white dark:bg-gray-800 p-5 rounded-lg border dark:border-gray-700 shadow-sm"><div className="flex items-center justify-between mb-3"><h3 className="font-bold text-[#162A43] dark:text-[#BFA15F] flex items-center gap-2"><GraduationCap size={20} /> {t('nextSchol')}</h3>{nextScholarship && <span className="text-xs font-bold text-red-600 bg-red-50 px-2 py-1 rounded-full">Approaching</span>}</div>{nextScholarship ? (<div className="bg-gray-50 dark:bg-gray-700 p-4 rounded border border-gray-100 dark:border-gray-600"><div className="flex justify-between items-start"><div><p className="font-bold text-lg text-[#162A43] dark:text-white">{nextScholarship.institution}</p><p className="text-sm text-gray-600 dark:text-gray-400">{nextScholarship.program}</p></div><div className="text-right"><p className="text-xs text-gray-500 uppercase font-bold">Due</p><p className="text-lg font-mono font-bold text-[#DB2B39]">{nextScholarship.deadline}</p></div></div></div>) : <div className="text-center py-6 text-gray-400 text-sm bg-gray-50 dark:bg-gray-700 rounded border border-dashed">No upcoming deadlines.</div>}</div>
+          <div className="bg-white dark:bg-gray-800 p-5 rounded-lg border dark:border-gray-700 shadow-sm"><div className="flex items-center justify-between mb-3"><h3 className="font-bold text-[#162A43] dark:text-[#BFA15F] flex items-center gap-2"><Briefcase size={20} /> {t('nextJob')}</h3>{nextJob && <span className="text-xs font-bold text-red-600 bg-red-50 px-2 py-1 rounded-full">Approaching</span>}</div>{nextJob ? (<div className="bg-gray-50 dark:bg-gray-700 p-4 rounded border border-gray-100 dark:border-gray-600"><div className="flex justify-between items-start"><div><p className="font-bold text-lg text-[#162A43] dark:text-white">{nextJob.institution}</p><p className="text-sm text-gray-600 dark:text-gray-400">{nextJob.program}</p></div><div className="text-right"><p className="text-xs text-gray-500 uppercase font-bold">Due</p><p className="text-lg font-mono font-bold text-[#DB2B39]">{nextJob.deadline}</p></div></div></div>) : <div className="text-center py-6 text-gray-400 text-sm bg-gray-50 dark:bg-gray-700 rounded border border-dashed">No upcoming deadlines.</div>}</div>
       </div>
       <div className="bg-gradient-to-r from-[#162A43] to-[#2C4B70] p-6 rounded-lg text-white shadow-md flex justify-between items-center">
         <div><h3 className="font-bold text-lg flex items-center gap-2"><Mail size={20}/> {t('dailyReport')}</h3><p className="text-sm opacity-80">Automated reminders enabled: {emailEnabled ? "ON" : "OFF"}</p></div>
@@ -494,16 +537,35 @@ const StatCard = ({ label, value, icon, color }) => (
 const ProfileBuilder = ({ profile, onSave }) => {
   const [localProfile, setLocalProfile] = useState(profile);
   
+  // Dynamic Section handlers
   const addArrayItem = (key, template) => setLocalProfile({ ...localProfile, [key]: [...(localProfile[key] || []), template] });
   const updateArrayItem = (key, idx, field, val) => {
     const updated = [...localProfile[key]];
     updated[idx][field] = val;
     setLocalProfile({ ...localProfile, [key]: updated });
   };
-
-  const enhanceText = (text) => {
+  const removeArrayItem = (key, idx) => {
+    const updated = [...localProfile[key]];
+    updated.splice(idx, 1);
+    setLocalProfile({ ...localProfile, [key]: updated });
+  };
+  
+  // Gemini-powered "Enhance" simulation: Format text into bullet points
+  const enhanceText = async (text) => {
     if (!text) return "• ";
-    return text.startsWith('•') ? text : "• " + text.split('\n').join('\n• ');
+    // Client-side simulation: Split sentences and make them bullet points
+    const sentences = text.split('.').map(s => s.trim()).filter(s => s.length > 5);
+    return sentences.map(s => s.startsWith('•') ? s : `• ${s}`).join('\n');
+  };
+
+  // Add Custom Section
+  const addCustomSection = () => {
+    const name = prompt("Enter Section Name (e.g., Certifications, Projects):");
+    if (name) {
+        const newSections = [...(localProfile.customSections || [])];
+        newSections.push({ title: name, items: [{ title: '', subtitle: '', description: '' }] });
+        setLocalProfile({ ...localProfile, customSections: newSections });
+    }
   };
 
   return (
@@ -512,51 +574,63 @@ const ProfileBuilder = ({ profile, onSave }) => {
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-bold text-[#162A43] dark:text-white flex gap-2"><User size={24}/> Master Profile</h2>
           <div className="flex gap-2">
-             <button onClick={() => generatePDF(localProfile, null)} className={STYLES.btnOutline}><Eye size={16}/> Preview Resume</button>
              <button onClick={() => onSave(localProfile)} className={STYLES.btnPrimary}><Save size={16}/> Save Profile</button>
           </div>
         </div>
         
+        {/* PERSONAL */}
         <div className="grid grid-cols-2 gap-4 mb-6">
           <input className={STYLES.input} placeholder="Full Name" value={localProfile.fullName} onChange={e=>setLocalProfile({...localProfile, fullName: e.target.value})} />
-          <input className={STYLES.input} placeholder="Contact Info (Address | Phone)" value={localProfile.contactInfo} onChange={e=>setLocalProfile({...localProfile, contactInfo: e.target.value})} />
+          <input className={STYLES.input} placeholder="Contact Info" value={localProfile.contactInfo} onChange={e=>setLocalProfile({...localProfile, contactInfo: e.target.value})} />
           <input className={STYLES.input} placeholder="LinkedIn" value={localProfile.linkedin} onChange={e=>setLocalProfile({...localProfile, linkedin: e.target.value})} />
           <input className={STYLES.input} placeholder="Email" value={localProfile.email} onChange={e=>setLocalProfile({...localProfile, email: e.target.value})} />
-          <textarea className={`${STYLES.input} col-span-2 h-24`} placeholder="Professional Summary" value={localProfile.summary} onChange={e=>setLocalProfile({...localProfile, summary: e.target.value})} />
+          <div className="md:col-span-2 relative">
+             <label className={STYLES.label}>Professional Summary</label>
+             <textarea className={`${STYLES.input} h-24`} placeholder="Professional Summary" value={localProfile.summary} onChange={e=>setLocalProfile({...localProfile, summary: e.target.value})} />
+          </div>
         </div>
 
-        {/* DYNAMIC SECTIONS */}
+        {/* SECTIONS */}
         {[
-          { key: 'education', title: 'Education', fields: ['school', 'degree', 'year', 'grade', 'coursework'] },
-          { key: 'experience', title: 'Work Experience', fields: ['role', 'company', 'date', 'description'] },
-          { key: 'volunteering', title: 'Volunteering', fields: ['role', 'company', 'date', 'description'] }
+          { key: 'education', title: 'Educational Background', fields: [{k:'degree', p:'Degree'}, {k:'school', p:'School'}, {k:'year', p:'Dates'}, {k:'grade', p:'Grade'}, {k:'coursework', p:'Coursework'}] },
+          { key: 'experience', title: 'Work Experience', fields: [{k:'role', p:'Role'}, {k:'company', p:'Company'}, {k:'date', p:'Dates'}, {k:'description', p:'Description', type:'textarea'}] },
+          { key: 'volunteering', title: 'Community Leadership & Volunteering', fields: [{k:'role', p:'Role'}, {k:'company', p:'Organization'}, {k:'date', p:'Dates'}, {k:'description', p:'Description', type:'textarea'}] }
         ].map(section => (
           <div key={section.key} className="mb-8">
             <div className="flex justify-between items-center mb-2 border-b pb-1"><h3 className="font-bold capitalize dark:text-white">{section.title}</h3><button onClick={() => addArrayItem(section.key, {})} className="text-sm text-blue-500">+ Add</button></div>
             {(localProfile[section.key] || []).map((item, idx) => (
               <div key={idx} className="grid grid-cols-2 gap-2 mb-2 p-3 bg-gray-50 dark:bg-gray-700 rounded border dark:border-gray-600 relative">
-                 <input className={STYLES.input} placeholder={section.key === 'education' ? "School" : "Role"} value={item.school || item.role} onChange={e => updateArrayItem(section.key, idx, section.key === 'education' ? 'school' : 'role', e.target.value)} />
-                 <input className={STYLES.input} placeholder={section.key === 'education' ? "Degree" : "Company"} value={item.degree || item.company} onChange={e => updateArrayItem(section.key, idx, section.key === 'education' ? 'degree' : 'company', e.target.value)} />
-                 <input className={STYLES.input} placeholder="Date/Year" value={item.year || item.date} onChange={e => updateArrayItem(section.key, idx, section.key === 'education' ? 'year' : 'date', e.target.value)} />
-                 {section.key === 'education' ? (
-                   <>
-                     <input className={STYLES.input} placeholder="Grade/GPA" value={item.grade} onChange={e => updateArrayItem(section.key, idx, 'grade', e.target.value)} />
-                     <textarea className={`${STYLES.input} col-span-2 h-16`} placeholder="Relevant Coursework" value={item.coursework} onChange={e => updateArrayItem(section.key, idx, 'coursework', e.target.value)} />
-                   </>
-                 ) : (
-                   <div className="col-span-2 relative">
-                     <textarea className={`${STYLES.input} h-32`} placeholder="Description (Bullet points)" value={item.description} onChange={e => updateArrayItem(section.key, idx, 'description', e.target.value)} />
-                     <button onClick={() => updateArrayItem(section.key, idx, 'description', enhanceText(item.description))} className="absolute bottom-2 right-2 bg-purple-100 text-purple-700 text-xs px-2 py-1 rounded flex items-center gap-1 hover:bg-purple-200"><Wand2 size={12}/> Enhance with AI</button>
-                   </div>
-                 )}
-                 <button onClick={() => { const n = [...localProfile[section.key]]; n.splice(idx, 1); setLocalProfile({...localProfile, [section.key]: n}); }} className="absolute top-2 right-2 text-red-500"><Trash2 size={14}/></button>
+                 {section.fields.map(f => (
+                    f.type === 'textarea' ? 
+                    <div key={f.k} className="col-span-2 relative">
+                        <textarea className={`${STYLES.input} h-24`} placeholder={f.p} value={item[f.k] || ''} onChange={e => updateArrayItem(section.key, idx, f.k, e.target.value)} />
+                        <button onClick={async () => updateArrayItem(section.key, idx, f.k, await enhanceText(item[f.k]))} className="absolute bottom-2 right-2 bg-purple-100 text-purple-700 text-xs px-2 py-1 rounded flex items-center gap-1"><Wand2 size={12}/> Enhance with AI</button>
+                    </div> :
+                    <input key={f.k} className={STYLES.input} placeholder={f.p} value={item[f.k] || ''} onChange={e => updateArrayItem(section.key, idx, f.k, e.target.value)} />
+                 ))}
+                 <button onClick={() => removeArrayItem(section.key, idx)} className="absolute top-2 right-2 text-red-500"><Trash2 size={14}/></button>
               </div>
             ))}
           </div>
         ))}
         
-        <div><label className={STYLES.label}>Awards</label><textarea className={STYLES.input} value={localProfile.awards} onChange={e=>setLocalProfile({...localProfile, awards: e.target.value})} /></div>
-        <div className="mt-4"><label className={STYLES.label}>Skills</label><textarea className={STYLES.input} value={localProfile.skills} onChange={e=>setLocalProfile({...localProfile, skills: e.target.value})} /></div>
+        {/* Custom Sections */}
+        <div className="mb-8">
+            <div className="flex justify-between items-center mb-2"><h3 className="font-bold dark:text-white">Additional Sections</h3><button onClick={addCustomSection} className="text-sm text-blue-500">+ Add Section</button></div>
+            {(localProfile.customSections || []).map((sec, sIdx) => (
+                <div key={sIdx} className="mb-4 border p-3 rounded dark:border-gray-600">
+                    <h4 className="font-bold text-sm text-gray-600 dark:text-gray-300 mb-2">{sec.title}</h4>
+                    <textarea className={`${STYLES.input} h-20`} placeholder="Details..." value={sec.items[0].description} onChange={(e) => {
+                        const newSecs = [...localProfile.customSections];
+                        newSecs[sIdx].items[0].description = e.target.value;
+                        setLocalProfile({...localProfile, customSections: newSecs});
+                    }} />
+                </div>
+            ))}
+        </div>
+
+        <div><label className={STYLES.label}>Awards & Recognition</label><textarea className={STYLES.input} value={localProfile.awards} onChange={e=>setLocalProfile({...localProfile, awards: e.target.value})} /></div>
+        <div className="mt-4"><label className={STYLES.label}>Core Competencies & Skills</label><textarea className={STYLES.input} value={localProfile.skills} onChange={e=>setLocalProfile({...localProfile, skills: e.target.value})} /></div>
       </div>
     </div>
   );
@@ -566,32 +640,122 @@ const ToolsModal = ({ appData, userProfile, onClose, t }) => {
   const [activeTool, setActiveTool] = useState('resume');
   const [generatedContent, setGeneratedContent] = useState('');
 
-  const generateResume = () => {
-    const jd = (appData.jobDescription || "").toLowerCase();
-    const skills = userProfile.skills.split(',').map(s => s.trim());
-    const matches = skills.filter(s => jd.includes(s.toLowerCase()));
+  const downloadPDF = async () => {
+    if (!window.jspdf) return alert("PDF Library loading... try again in 3 seconds.");
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    doc.setFont("helvetica"); // Use standard font to ensure clean PDF export
     
-    // This is just for the preview text box
-    let text = `RESUME PREVIEW\n----------------\n${userProfile.fullName}\n${userProfile.contactInfo}\n\nSUMMARY:\n${userProfile.summary}\n\n`;
-    if (matches.length > 0) text += `RELEVANT SKILLS (Tailored for ${appData.institution}):\n- ${matches.join('\n- ')}\n\n`;
-    else text += `SKILLS:\n- ${skills.join('\n- ')}\n\n`;
-    text += `EXPERIENCE:\n${userProfile.experience.map(e => `${e.role} at ${e.company}\n${e.description}`).join('\n\n')}`;
-    setGeneratedContent(text);
-  };
+    if (activeTool === 'resume') {
+      let y = 20;
+      
+      // HEADER
+      doc.setFontSize(16); doc.setFont("helvetica", "bold"); 
+      doc.text(userProfile.fullName || "Your Name", 105, y, { align: "center" });
+      y += 6;
+      doc.setFontSize(10); doc.setFont("helvetica", "normal"); 
+      doc.text(`${userProfile.contactInfo} | ${userProfile.email}`, 105, y, { align: "center" });
+      y += 5;
+      doc.text(userProfile.linkedin || "", 105, y, { align: "center" });
+      y += 10;
 
-  const generateCoverLetter = () => {
-    let cl = COVER_LETTER_TEMPLATE
-      .replace('{{COMPANY_NAME}}', appData.institution)
-      .replace('{{COMPANY_NAME}}', appData.institution)
-      .replace('{{POSITION_TITLE}}', appData.program)
-      .replace('{{POSITION_TITLE}}', appData.program)
-      .replace('{{FULL_NAME}}', userProfile.fullName)
-      .replace('{{CONTACT_INFO}}', userProfile.contactInfo);
-    setGeneratedContent(cl);
+      const addSectionTitle = (title) => {
+        if (y > 270) { doc.addPage(); y = 20; }
+        y += 5; 
+        doc.setFont("helvetica", "bold"); 
+        doc.setFontSize(11); 
+        doc.text(title.toUpperCase(), 20, y); 
+        doc.setLineWidth(0.5); 
+        doc.line(20, y + 1, 190, y + 1); 
+        y += 6;
+      };
+
+      // 1. SUMMARY
+      addSectionTitle("OBJECTIVE PROFESSIONAL PROFILE");
+      doc.setFont("helvetica", "normal"); doc.setFontSize(10);
+      const sumLines = doc.splitTextToSize(userProfile.summary || "", 170);
+      doc.text(sumLines, 20, y); y += (sumLines.length * 5);
+
+      // 2. EDUCATION
+      addSectionTitle("EDUCATIONAL BACKGROUND");
+      (userProfile.education || []).forEach(edu => {
+        if (y > 270) { doc.addPage(); y = 20; }
+        doc.setFont("helvetica", "bold"); doc.text(edu.degree, 20, y); y += 5;
+        doc.setFont("helvetica", "normal"); doc.text(`${edu.school} | ${edu.year}`, 20, y); y += 5;
+        if(edu.grade) { doc.text(`Final Grade: ${edu.grade}`, 20, y); y+=5; }
+        if(edu.coursework) { 
+            const cw = doc.splitTextToSize(`Relevant Coursework: ${edu.coursework}`, 170);
+            doc.text(cw, 20, y); y += (cw.length * 5); 
+        }
+        y += 3;
+      });
+
+      // 3. EXPERIENCE
+      addSectionTitle("WORK EXPERIENCE");
+      (userProfile.experience || []).forEach(exp => {
+        if (y > 250) { doc.addPage(); y = 20; }
+        doc.setFont("helvetica", "bold"); doc.text(exp.role, 20, y);
+        doc.setFont("helvetica", "italic"); doc.text(`${exp.company} | ${exp.date}`, 190, y, { align: "right" }); y+=5;
+        doc.setFont("helvetica", "normal"); 
+        const desc = doc.splitTextToSize(exp.description || "", 170);
+        doc.text(desc, 20, y); y += (desc.length * 5) + 4; 
+      });
+
+      // 4. VOLUNTEERING
+      if (userProfile.volunteering?.length) {
+        addSectionTitle("COMMUNITY LEADERSHIP & VOLUNTEERING");
+        userProfile.volunteering.forEach(vol => {
+          if (y > 250) { doc.addPage(); y = 20; }
+          doc.setFont("helvetica", "bold"); doc.text(vol.role, 20, y);
+          doc.setFont("helvetica", "italic"); doc.text(`${vol.company} | ${vol.date}`, 190, y, { align: "right" }); y+=5;
+          doc.setFont("helvetica", "normal"); 
+          const vdesc = doc.splitTextToSize(vol.description || "", 170);
+          doc.text(vdesc, 20, y); y += (vdesc.length * 5) + 4;
+        });
+      }
+
+      // 5. AWARDS
+      if (userProfile.awards) {
+         addSectionTitle("AWARDS & RECOGNITION");
+         doc.setFont("helvetica", "normal"); 
+         const aw = doc.splitTextToSize(userProfile.awards, 170);
+         doc.text(aw, 20, y); y += (aw.length * 5);
+      }
+
+      // 6. SKILLS
+      addSectionTitle("CORE COMPETENCIES & SKILLS");
+      let skillText = userProfile.skills || "";
+      // AI Tailoring: Capitalize skills found in Job Description
+      if (appData && appData.jobDescription) {
+         const jd = appData.jobDescription.toLowerCase();
+         skillText = userProfile.skills.split(',').map(s => jd.includes(s.trim().toLowerCase()) ? s.trim().toUpperCase() : s.trim()).join(', ');
+      }
+      const skLines = doc.splitTextToSize(skillText, 170);
+      doc.text(skLines, 20, y);
+
+      // FOOTER
+      y += 20; if (y > 270) { doc.addPage(); y = 20; }
+      doc.setFont("helvetica", "italic");
+      doc.text("References Available Upon Request", 105, y, { align: "center" });
+
+      doc.save(`${userProfile.fullName.replace(' ', '_')}_Resume.pdf`);
+
+    } else {
+      // --- COVER LETTER ---
+      const today = new Date().toLocaleDateString();
+      const company = appData ? appData.institution : "[Company Name]";
+      const role = appData ? appData.program : "[Position Name]";
+      let content = COVER_LETTER_TEMPLATE.replace('[Date Today]', today).replace(/{{COMPANY_NAME}}/g, company).replace(/{{POSITION_TITLE}}/g, role).replace('{{FULL_NAME}}', userProfile.fullName).replace('{{CONTACT_INFO}}', userProfile.contactInfo);
+      
+      doc.setFontSize(11);
+      const lines = doc.splitTextToSize(content, 170);
+      doc.text(lines, 20, 20);
+      doc.save(`Cover_Letter_${company}.pdf`);
+    }
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[70] p-4">
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[70] p-4 backdrop-blur-sm animate-fade-in">
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-4xl h-[80vh] flex flex-col overflow-hidden">
         <div className="p-4 border-b dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-900">
           <div><h3 className="font-bold text-lg dark:text-white flex gap-2"><Wrench size={20}/> Tools: {appData.institution}</h3></div>
@@ -602,14 +766,14 @@ const ToolsModal = ({ appData, userProfile, onClose, t }) => {
             <button onClick={() => setActiveTool('resume')} className={`p-3 rounded text-left flex gap-2 ${activeTool === 'resume' ? 'bg-[#162A43] text-white' : 'hover:bg-gray-200 dark:text-gray-300'}`}><DocumentIcon size={18}/> Resume Builder</button>
             <button onClick={() => setActiveTool('coverletter')} className={`p-3 rounded text-left flex gap-2 ${activeTool === 'coverletter' ? 'bg-[#162A43] text-white' : 'hover:bg-gray-200 dark:text-gray-300'}`}><PenTool size={18}/> Cover Letter</button>
           </div>
-          <div className="flex-1 p-6 overflow-y-auto bg-white dark:bg-gray-800">
-            <div className="mb-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded border border-blue-100 dark:border-blue-800">
-               <h4 className="font-bold text-blue-800 dark:text-blue-300 mb-1">AI Tailoring Engine</h4>
-               <p className="text-sm text-gray-600 dark:text-gray-300">Targeting Job: <em>"{appData.institution}"</em></p>
-               <button onClick={activeTool === 'resume' ? generateResume : generateCoverLetter} className="mt-2 bg-blue-600 text-white px-4 py-2 rounded text-sm font-bold">Generate Tailored Document</button>
-            </div>
-            <textarea className="w-full h-64 p-4 border dark:border-gray-700 rounded font-mono text-sm dark:bg-gray-900 dark:text-white" value={generatedContent} onChange={e => setGeneratedContent(e.target.value)} placeholder="Preview will appear here..."></textarea>
-            <button onClick={() => generatePDF(userProfile, appData, activeTool)} disabled={!generatedContent} className="mt-4 w-full bg-[#DB2B39] text-white py-3 rounded font-bold flex items-center justify-center gap-2 disabled:opacity-50"><Download size={20}/> Export PDF</button>
+          <div className="flex-1 p-6 overflow-y-auto bg-white dark:bg-gray-800 flex flex-col items-center justify-center">
+            <h3 className="text-xl font-bold mb-4 text-[#162A43] dark:text-white">{activeTool === 'resume' ? "Tailored Resume Generator" : "Cover Letter Generator"}</h3>
+            <p className="text-center text-gray-600 dark:text-gray-300 mb-8 max-w-md">
+               {activeTool === 'resume' ? 
+               "This tool uses your Master Profile and compares it against the Job Description to highlight relevant skills." : 
+               "This tool generates a professional cover letter using your profile summary and the job details."}
+            </p>
+            <button onClick={downloadPDF} className={`${STYLES.btnPrimary} text-lg px-8 py-4`}><Download size={24}/> Download PDF</button>
           </div>
         </div>
       </div>
@@ -617,82 +781,7 @@ const ToolsModal = ({ appData, userProfile, onClose, t }) => {
   );
 };
 
-// --- GLOBAL PDF GENERATION ---
-const generatePDF = (userProfile, appData = null, type = 'resume') => {
-    if (!window.jspdf) return alert("PDF Library loading... try again in 3 seconds.");
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF();
-    
-    if (type === 'resume') {
-      let y = 20;
-      // Header
-      doc.setFont("helvetica", "bold"); doc.setFontSize(16); doc.text(userProfile.fullName || "Your Name", 105, y, { align: "center" });
-      y += 6;
-      doc.setFontSize(10); doc.setFont("helvetica", "normal"); doc.text(`${userProfile.contactInfo} | ${userProfile.email}`, 105, y, { align: "center" });
-      y += 5;
-      doc.text(userProfile.linkedin || "", 105, y, { align: "center" });
-      y += 10;
-
-      const addSectionTitle = (title) => {
-        y += 5; doc.setFont("helvetica", "bold"); doc.setFontSize(11); doc.text(title, 20, y); doc.setLineWidth(0.5); doc.line(20, y + 1, 190, y + 1); y += 6;
-      };
-
-      // Content Sections
-      addSectionTitle("OBJECTIVE PROFESSIONAL PROFILE");
-      doc.setFont("helvetica", "normal"); doc.setFontSize(10);
-      doc.text(doc.splitTextToSize(userProfile.summary || "", 170), 20, y);
-      y += 25; // Approx height
-
-      addSectionTitle("EDUCATIONAL BACKGROUND");
-      (userProfile.education || []).forEach(edu => {
-        doc.setFont("helvetica", "bold"); doc.text(edu.degree, 20, y); y += 5;
-        doc.setFont("helvetica", "normal"); doc.text(`${edu.school} | ${edu.year}`, 20, y); y += 5;
-        if(edu.grade) { doc.text(`Final Grade: ${edu.grade}`, 20, y); y+=5; }
-        if(edu.coursework) { doc.text(doc.splitTextToSize(`Relevant Coursework: ${edu.coursework}`, 170), 20, y); y+=10; }
-        y += 2;
-      });
-
-      addSectionTitle("WORK EXPERIENCE");
-      (userProfile.experience || []).forEach(exp => {
-        if (y > 270) { doc.addPage(); y = 20; }
-        doc.setFont("helvetica", "bold"); doc.text(exp.role, 20, y);
-        doc.setFont("helvetica", "italic"); doc.text(`${exp.company} | ${exp.date}`, 190, y, { align: "right" }); y+=5;
-        doc.setFont("helvetica", "normal"); doc.text(doc.splitTextToSize(exp.description || "", 170), 25, y); y+=20; 
-      });
-
-      if (userProfile.volunteering?.length) {
-        if (y > 250) { doc.addPage(); y = 20; }
-        addSectionTitle("COMMUNITY LEADERSHIP & VOLUNTEERING");
-        userProfile.volunteering.forEach(vol => {
-          doc.setFont("helvetica", "bold"); doc.text(vol.role, 20, y);
-          doc.setFont("helvetica", "italic"); doc.text(`${vol.company} | ${vol.date}`, 190, y, { align: "right" }); y+=5;
-          doc.setFont("helvetica", "normal"); doc.text(doc.splitTextToSize(vol.description || "", 170), 25, y); y+=15;
-        });
-      }
-      
-      if (appData && appData.jobDescription) {
-         addSectionTitle("RELEVANT SKILLS (Tailored)");
-         const jd = appData.jobDescription.toLowerCase();
-         const skills = userProfile.skills.split(',');
-         const matched = skills.filter(s => jd.includes(s.trim().toLowerCase())).join(', ');
-         doc.setFont("helvetica", "normal"); doc.text(doc.splitTextToSize(matched || userProfile.skills, 170), 20, y);
-      } else {
-         addSectionTitle("CORE COMPETENCIES & SKILLS");
-         doc.setFont("helvetica", "normal"); doc.text(doc.splitTextToSize(userProfile.skills || "", 170), 20, y);
-      }
-      
-      doc.save(`${userProfile.fullName.replace(' ', '_')}_Resume.pdf`);
-    } else {
-      // Cover Letter
-      const today = new Date().toLocaleDateString();
-      const company = appData ? appData.institution : "[Company Name]";
-      const role = appData ? appData.program : "[Position Name]";
-      let content = COVER_LETTER_TEMPLATE.replace('[Date Today]', today).replace(/{{COMPANY_NAME}}/g, company).replace(/{{POSITION_TITLE}}/g, role).replace('{{FULL_NAME}}', userProfile.fullName).replace('{{CONTACT_INFO}}', userProfile.contactInfo);
-      doc.setFontSize(11); doc.text(doc.splitTextToSize(content, 170), 20, 20);
-      doc.save(`Cover_Letter_${company}.pdf`);
-    }
-};
-
+// --- MODALS ---
 const FormModal = ({ isOpen, onClose, editingId, formData, setFormData, onSubmit, isSubmitting, handleChecklistChange, getFormProgress, t }) => {
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4">
@@ -707,7 +796,10 @@ const FormModal = ({ isOpen, onClose, editingId, formData, setFormData, onSubmit
             <div><label className={STYLES.label}>Type</label><select className={STYLES.input} value={formData.type} onChange={e => setFormData({...formData, type: e.target.value})}><option>Scholarship</option><option>Job</option></select></div>
             <div><label className={STYLES.label}>Deadline</label><input type="date" className={STYLES.input} value={formData.deadline} onChange={e => setFormData({...formData, deadline: e.target.value})} /></div>
           </div>
-          <div><label className={STYLES.label}>Status</label><select className={STYLES.input} value={formData.status} onChange={e => setFormData({...formData, status: e.target.value})}><option>Researching</option><option>In Progress</option><option>Drafting</option><option>Submitted</option><option>Accepted</option><option>Rejected</option></select></div>
+          <div className="grid grid-cols-2 gap-4">
+            <div><label className={STYLES.label}>Start Date</label><input type="date" className={STYLES.input} value={formData.startDate} onChange={e => setFormData({...formData, startDate: e.target.value})} /></div>
+            <div><label className={STYLES.label}>Status</label><select className={STYLES.input} value={formData.status} onChange={e => setFormData({...formData, status: e.target.value})}><option>Researching</option><option>In Progress</option><option>Drafting</option><option>Submitted</option><option>Accepted</option><option>Rejected</option></select></div>
+          </div>
           <div><label className={STYLES.label}>Job Description / Requirements</label><textarea className={`${STYLES.input} h-32`} placeholder="Paste the full job description here..." value={formData.jobDescription} onChange={e => setFormData({...formData, jobDescription: e.target.value})}></textarea></div>
           <div><label className={STYLES.label}>Image URL</label><input className={STYLES.input} value={formData.image} onChange={e => setFormData({...formData, image: e.target.value})} /></div>
           <div className="col-span-2"><div className="flex justify-between items-center mb-2"><label className={STYLES.label}>{t('checklist')}</label><span className="text-xs font-bold text-[#BFA15F]">{getFormProgress()}% Complete</span></div><div className="grid grid-cols-2 md:grid-cols-4 gap-3">{Object.keys(formData.steps).map(stepKey => (<div key={stepKey} onClick={() => handleChecklistChange(stepKey)} className={`cursor-pointer p-3 rounded-lg border text-center transition-all duration-200 flex flex-col items-center gap-2 ${formData.steps[stepKey] ? 'bg-[#162A43] border-[#162A43] text-white' : 'bg-gray-50 border-gray-200'}`}>{formData.steps[stepKey] ? <CheckCircle size={20} /> : <CheckSquare size={20} />}<span className="text-[10px] font-bold uppercase">{stepKey}</span></div>))}</div></div>
@@ -725,36 +817,9 @@ const PreferencesModal = ({ isOpen, onClose, currentSettings, onSave, t }) => {
   useEffect(() => { if (isOpen) { setLocalTheme(currentSettings.theme); setLocalLanguage(currentSettings.language); setLocalEmail(currentSettings.emailEnabled); } }, [isOpen, currentSettings]);
   const handleSave = () => { onSave({ theme: localTheme, language: localLanguage, emailEnabled: localEmail }); onClose(); };
   if (!isOpen) return null;
-  return (<div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[70] p-4"><div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-md overflow-hidden"><div className="p-5 border-b dark:border-gray-700 flex justify-between items-center"><h3 className="font-bold text-lg dark:text-white">Preferences</h3><button onClick={onClose}><X/></button></div><div className="p-6 space-y-6"><div className="flex justify-between"><span>Theme</span><button onClick={() => setLocalTheme(localTheme === 'light' ? 'dark' : 'light')}>{localTheme}</button></div><div className="pt-4 flex justify-end"><button onClick={handleSave} className={STYLES.btnPrimary}>Save</button></div></div></div></div>);
+  return (<div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[70] p-4"><div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-md overflow-hidden"><div className="p-5 border-b dark:border-gray-700 flex justify-between items-center"><h3 className="font-bold text-lg dark:text-white">Preferences</h3><button onClick={onClose}><X/></button></div><div className="p-6 space-y-6"><div className="flex justify-between"><span>Theme</span><button onClick={() => setLocalTheme(localTheme === 'light' ? 'dark' : 'light')}>{localTheme}</button></div><div className="flex justify-between items-center"><div className="flex items-center gap-3"><Languages size={20} className="text-purple-500"/><span className="dark:text-gray-200 font-medium">{t('language')}</span></div><select value={localLanguage} onChange={(e) => setLocalLanguage(e.target.value)} className="p-1.5 rounded border dark:border-gray-600 dark:bg-gray-700 dark:text-white text-sm focus:ring-2 focus:ring-[#162A43]"><option value="en">{t('english')}</option><option value="fr">{t('french')}</option></select></div><div className="flex justify-between items-center"><div className="flex items-center gap-3"><Mail size={20} className="text-red-500"/><span className="dark:text-gray-200 font-medium">{t('notifications')}</span></div><div className="relative inline-block w-10 mr-2 align-middle select-none transition duration-200 ease-in"><input type="checkbox" checked={localEmail} onChange={() => setLocalEmail(!localEmail)} className="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer top-0"/><label onClick={() => setLocalEmail(!localEmail)} className={`toggle-label block overflow-hidden h-6 rounded-full cursor-pointer ${localEmail ? 'bg-green-400' : 'bg-gray-300'}`}></label></div></div><div className="pt-4 flex justify-end"><button onClick={handleSave} className={STYLES.btnPrimary}>Save</button></div></div></div></div>);
 };
 
-const AboutModal = ({ onClose }) => (
-  <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[70] p-4 backdrop-blur-sm animate-fade-in">
-    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-lg overflow-hidden relative">
-      <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-black dark:hover:text-white"><X size={24}/></button>
-      <div className="bg-[#162A43] p-8 text-center text-white">
-        <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center mx-auto mb-4 overflow-hidden p-1"><img src={ALU_SMALL_LOGO_URL} alt="ALU" className="w-full h-full object-cover rounded-full" /></div>
-        <h2 className="text-2xl font-bold">ALU Opportunity Tracker</h2>
-        <p className="text-gray-300 text-sm mt-2">Version 4.0.0</p>
-      </div>
-      <div className="p-8 space-y-6 dark:text-gray-300">
-        <div><h3 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wider mb-2">About</h3><p className="text-sm leading-relaxed">Track scholarships, jobs, and deadlines in one secure dashboard.</p></div>
-        <div>
-          <h3 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wider mb-3">Developer</h3>
-          <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg border border-gray-100 dark:border-gray-600 flex items-center gap-4">
-            <div className="w-12 h-12 bg-[#162A43] rounded-full flex items-center justify-center text-white font-bold text-xl">D</div>
-            <div><p className="font-bold text-[#162A43] dark:text-[#BFA15F]">dumethode</p><p className="text-xs text-gray-500 dark:text-gray-400">Lead Developer</p></div>
-          </div>
-          <div className="flex gap-4 mt-4 justify-center">
-             <a href="https://twitter.com/dumethode" target="_blank" rel="noopener noreferrer" className="p-2 text-gray-400 hover:text-[#1DA1F2] transition-colors"><Twitter size={20} /></a>
-             <a href="https://github.com/dumethode" target="_blank" rel="noopener noreferrer" className="p-2 text-gray-400 hover:text-[#162A43] dark:hover:text-white transition-colors"><Github size={20} /></a>
-             <a href="https://www.linkedin.com/in/dumethode/" target="_blank" rel="noopener noreferrer" className="p-2 text-gray-400 hover:text-[#0077B5] transition-colors"><Linkedin size={20} /></a>
-             <a href="https://www.instagram.com/dumethode/" target="_blank" rel="noopener noreferrer" className="p-2 text-gray-400 hover:text-[#E1306C] transition-colors"><Instagram size={20} /></a>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-);
-const PrivacyModal = ({ onClose }) => (<div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[70] p-4"><div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-lg"><div className="p-5 flex justify-between"><h3 className="font-bold text-lg">Privacy</h3><button onClick={onClose}><X/></button></div><div className="p-6"><p>Your data is secure.</p></div></div></div>);
-const TermsModal = ({ onClose }) => (<div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[70] p-4"><div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-lg"><div className="p-5 flex justify-between"><h3 className="font-bold text-lg">Terms</h3><button onClick={onClose}><X/></button></div><div className="p-6"><p>Use responsibly.</p></div></div></div>);
+const AboutModal = ({ onClose }) => (<div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[70] p-4"><div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-lg overflow-hidden"><div className="p-5 flex justify-between"><h3 className="font-bold text-lg">About</h3><button onClick={onClose}><X/></button></div><div className="p-6"><div className="flex justify-center mb-4"><img src={ALU_SMALL_LOGO_URL} className="w-20 h-20 rounded-full object-cover"/></div><p className="text-center mb-4">ALU Tracker v4.1 - Built by dumethode</p><p className="text-sm text-center text-gray-500">Empowering ALU students to manage their career journey effectively. Track scholarships, jobs, and deadlines in one secure, cloud-based dashboard.</p><div className="flex gap-4 mt-4 justify-center"><a href="https://twitter.com/dumethode" target="_blank" className="p-2 text-gray-400 hover:text-[#1DA1F2]"><Twitter size={20}/></a><a href="https://github.com/dumethode" target="_blank" className="p-2 text-gray-400 hover:text-[#162A43]"><Github size={20}/></a><a href="https://linkedin.com/in/dumethode" target="_blank" className="p-2 text-gray-400 hover:text-[#0077B5]"><Linkedin size={20}/></a><a href="https://instagram.com/dumethode" target="_blank" className="p-2 text-gray-400 hover:text-[#E1306C]"><Instagram size={20}/></a></div></div></div></div>);
+const PrivacyModal = ({ onClose }) => (<div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[70] p-4"><div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-lg"><div className="p-5 flex justify-between"><h3 className="font-bold text-lg">Privacy Policy</h3><button onClick={onClose}><X/></button></div><div className="p-6 text-sm text-gray-600 dark:text-gray-300 space-y-4"><p><strong>Last Updated: November 2025.</strong></p><p>We collect limited personal information including your name, email address, and phone number during registration. We also store the application data you voluntarily input (scholarship details, deadlines, notes).</p><p>Your data is used exclusively to provide the tracking service, authenticate your identity, and send requested notifications. We do not sell or share your personal data with third parties.</p><p>All data is stored securely using Google Firebase Firestore with encrypted transmission. User authentication is handled via Firebase Auth to ensure secure access.</p><p>You have the right to access, edit, or delete your data at any time. Deleting an application removes it permanently from our database.</p></div></div></div>);
+const TermsModal = ({ onClose }) => (<div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[70] p-4"><div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-lg"><div className="p-5 flex justify-between"><h3 className="font-bold text-lg">Terms of Service</h3><button onClick={onClose}><X/></button></div><div className="p-6 text-sm text-gray-600 dark:text-gray-300 space-y-4"><p><strong>Last Updated: November 2025.</strong></p><p>By accessing or using ALU Opportunity Tracker, you agree to be bound by these Terms.</p><p>By creating an account, you confirm that you will use this service for lawful purposes related to tracking educational and professional opportunities.</p><p>You are responsible for maintaining the confidentiality of your password and account. You agree to notify us immediately of any unauthorized use of your account.</p><p>The application data you enter belongs to you. The platform code and design remain the intellectual property of the developer.</p><p>We may terminate or suspend access to our service immediately, without prior notice, for any reason whatsoever, including without limitation if you breach the Terms.</p></div></div></div>);
