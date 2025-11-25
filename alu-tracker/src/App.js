@@ -1,12 +1,31 @@
 import React, { useState, useEffect } from 'react';
 import { initializeApp } from "firebase/app";
-import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile, sendEmailVerification } from "firebase/auth";
-import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, setDoc, onSnapshot, query, orderBy } from "firebase/firestore";
-import { jsPDF } from "jspdf";
+import { 
+  getAuth, 
+  createUserWithEmailAndPassword, 
+  signInWithEmailAndPassword, 
+  signOut, 
+  onAuthStateChanged,
+  updateProfile,
+  sendEmailVerification
+} from "firebase/auth";
+import { 
+  getFirestore, 
+  collection, 
+  addDoc, 
+  updateDoc, 
+  deleteDoc, 
+  doc, 
+  setDoc,
+  onSnapshot, 
+  query, 
+  orderBy 
+} from "firebase/firestore";
+// Removed static import of jsPDF to prevent build errors
 import { 
   Plus, Search, Trash2, Edit2, CheckCircle, Briefcase, GraduationCap, 
-  X, LayoutGrid, List, PieChart, Calendar, 
-  BarChart2, Bell, LogOut, Loader2, Lock, Mail, Info, Twitter, Github, Linkedin, Instagram, CheckSquare, Clock, Send, Settings, Moon, Sun, Languages, Shield, FileText, Save, Link as LinkIcon, Image as ImageIcon, Wrench, FileText as DocumentIcon, PenTool
+  X, LayoutGrid, List, PieChart, 
+  BarChart2, Bell, LogOut, Loader2, Lock, Mail, Info, Twitter, Github, Linkedin, Instagram, CheckSquare, Send, Settings, Moon, Sun, Languages, Shield, FileText, Save, Link as LinkIcon, Image as ImageIcon, Wrench, FileText as DocumentIcon, PenTool, Download
 } from 'lucide-react';
 
 // --- 1. FIREBASE CONFIGURATION ---
@@ -26,11 +45,33 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-// --- CONSTANTS & TEMPLATES ---
+// --- STYLES & THEMES ---
+const THEME = {
+  primary: '#162A43',    // ALU Deep Navy Blue
+  accent: '#DB2B39',     // ALU Bright Red
+  light: '#F3F4F6',      
+  white: '#FFFFFF',
+  gold: '#BFA15F'        // ALU Gold
+};
+
+const STYLES = {
+  font: { fontFamily: "'Montserrat', sans-serif" },
+  btnPrimary: `bg-[#162A43] text-white hover:bg-[#2C4B70] dark:bg-[#BFA15F] dark:text-[#162A43] transition-colors shadow-sm flex items-center gap-2 justify-center disabled:opacity-70 disabled:cursor-not-allowed`,
+  btnAccent: `bg-[#DB2B39] text-white hover:bg-[#B91C29] transition-colors shadow-sm flex items-center gap-2 justify-center`,
+  btnOutline: `border border-gray-300 text-gray-700 dark:text-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex items-center gap-2 justify-center`,
+  card: `bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden`,
+  input: `w-full p-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:ring-2 focus:ring-[#162A43] dark:focus:ring-[#BFA15F] outline-none transition-all`,
+  label: `block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1.5`
+};
+
+// --- CONSTANTS ---
 const ALU_LARGE_LOGO_URL = "https://www.alueducation.com/wp-content/uploads/2023/05/ALU-logo-with-name-min.png";
 const ALU_SMALL_LOGO_URL = "https://www.alueducation.com/wp-content/uploads/2016/02/alu_logo_original.png";
 
-const DEFAULT_STEPS = { research: false, networking: false, readCall: false, drafting: false, docsReady: false, referees: false, finalReview: false, submitted: false };
+const DEFAULT_STEPS = { 
+  research: false, networking: false, readCall: false, drafting: false, 
+  docsReady: false, referees: false, finalReview: false, submitted: false 
+};
 
 // METHODE'S CV DATA (For AI Resume Builder)
 const MY_PROFILE = {
@@ -129,6 +170,8 @@ export default function App() {
   // Modal States
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isAboutOpen, setIsAboutOpen] = useState(false);
+  const [isPrivacyOpen, setIsPrivacyOpen] = useState(false);
+  const [isTermsOpen, setIsTermsOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isToolsOpen, setIsToolsOpen] = useState(false);
   const [selectedAppForTools, setSelectedAppForTools] = useState(null);
@@ -299,6 +342,11 @@ export default function App() {
   const getProgress = (app) => { if (['Submitted', 'Accepted', 'Rejected'].includes(app.status)) return 100; const s=app.steps||{}; const k=Object.keys(s); if(!k.length)return 0; return Math.round((k.filter(x=>s[x]).length/k.length)*100); };
   const getFormProgress = () => { const s=formData.steps; const k=Object.keys(s); return Math.round((k.filter(x=>s[x]).length/k.length)*100); }
 
+  const toggleStep = async (app, stepKey) => {
+     const newSteps = { ...app.steps, [stepKey]: !app.steps[stepKey] };
+     await updateDoc(doc(db, "users", user.uid, "applications", app.firebaseId), { steps: newSteps });
+  };
+
   // --- RENDERERS ---
   if (loading) return <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-gray-50 dark:bg-gray-900"><Loader2 className="animate-spin text-[#162A43] dark:text-[#BFA15F]" size={48} /><p className="text-[#162A43] dark:text-white font-semibold animate-pulse">Loading ALU Tracker...</p></div>;
 
@@ -371,6 +419,7 @@ export default function App() {
                 <div className="bg-white dark:bg-gray-800 p-5 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm"><div className="flex items-center justify-between mb-3"><h3 className="font-bold text-[#162A43] dark:text-[#BFA15F] flex items-center gap-2"><Briefcase size={20} /> {t('nextJob')}</h3>{nextJob && <span className="text-xs font-bold text-red-600 bg-red-50 px-2 py-1 rounded-full">Approaching</span>}</div>{nextJob ? (<div className="bg-gray-50 dark:bg-gray-700 p-4 rounded border border-gray-100 dark:border-gray-600"><div className="flex justify-between items-start"><div><p className="font-bold text-lg text-[#162A43] dark:text-white">{nextJob.institution}</p><p className="text-sm text-gray-600 dark:text-gray-400">{nextJob.program}</p></div><div className="text-right"><p className="text-xs text-gray-500 uppercase font-bold">Due</p><p className="text-lg font-mono font-bold text-[#DB2B39]">{nextJob.deadline}</p></div></div></div>) : <div className="text-center py-6 text-gray-400 text-sm bg-gray-50 dark:bg-gray-700 rounded border border-dashed">No upcoming deadlines.</div>}</div>
              </div>
              <div className="bg-gradient-to-r from-[#162A43] to-[#2C4B70] p-6 rounded-lg text-white shadow-md flex flex-col md:flex-row items-center justify-between gap-4"><div><h3 className="font-bold text-lg flex items-center gap-2"><Mail size={20}/> {t('dailyReport')}</h3><p className="text-sm text-gray-300 opacity-90">Daily notifications at <span className="font-bold text-[#BFA15F]">10:00 PM</span>. {emailEnabled ? "Auto-email is ON." : "Auto-email is OFF."}</p></div><button onClick={() => sendEmailReport()} className="bg-[#BFA15F] text-[#162A43] px-6 py-3 rounded font-bold hover:bg-white transition-colors flex items-center gap-2 shadow-lg"><Send size={18} /> {t('sendReport')}</button></div>
+             <div className="bg-white dark:bg-gray-800 p-6 rounded-lg border dark:border-gray-700"><h3 className="text-lg font-bold text-[#162A43] dark:text-[#BFA15F] mb-4">{t('progress')}</h3>{apps.slice(0, 5).map(app => { const p = getProgress(app); return (<div key={app.id} className="mb-3"><div className="flex justify-between text-sm font-semibold text-gray-700 dark:text-gray-300"><span>{app.institution}</span><span>{p}%</span></div><div className="w-full bg-gray-100 dark:bg-gray-700 rounded-full h-2 mt-1"><div className="h-2 rounded-full transition-all" style={{ width: `${p}%`, backgroundColor: p===100 ? '#BFA15F' : '#162A43' }}></div></div></div>) })}</div>
           </div>
         )}
 
@@ -378,13 +427,7 @@ export default function App() {
           <div className={viewMode === 'grid' ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" : "space-y-2"}>
              {filteredApps.map(app => (
                 <div key={app.id} className={viewMode === 'grid' ? STYLES.card + " flex flex-col hover:shadow-md transition-all relative group" : "bg-white dark:bg-gray-800 border dark:border-gray-700 rounded p-4 flex items-center justify-between relative"}>
-                   {/* TOOLS BUTTON */}
-                   <div className="absolute top-2 left-2 z-10">
-                     <button onClick={(e) => { e.stopPropagation(); openTools(app); }} className="bg-white dark:bg-gray-700 p-1.5 rounded-full shadow hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors text-[#162A43] dark:text-[#BFA15F]" title="Application Tools (Resume/Cover Letter)">
-                       <Wrench size={16} />
-                     </button>
-                   </div>
-
+                   <div className="absolute top-2 left-2 z-10"><button onClick={(e) => { e.stopPropagation(); openTools(app); }} className="bg-white dark:bg-gray-700 p-1.5 rounded-full shadow hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors text-[#162A43] dark:text-[#BFA15F]" title="Application Tools (Resume/Cover Letter)"><Wrench size={16} /></button></div>
                    {viewMode === 'grid' ? (
                      <>
                       <div className="h-32 bg-gray-100 dark:bg-gray-700 relative">
@@ -416,7 +459,6 @@ export default function App() {
           </div>
         )}
 
-        {/* NEW/EDIT FORM */}
         {isFormOpen && (
            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4 backdrop-blur-sm">
              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden max-h-[90vh] overflow-y-auto">
@@ -437,13 +479,11 @@ export default function App() {
                   <div><label className={STYLES.label}>Deadline</label><input type="date" className={STYLES.input} value={formData.deadline} onChange={e => setFormData({...formData, deadline: e.target.value})} /></div>
                   <div><label className={STYLES.label}>Status</label><select className={STYLES.input} value={formData.status} onChange={e => setFormData({...formData, status: e.target.value})}><option>Researching</option><option>In Progress</option><option>Drafting</option><option>Submitted</option><option>Accepted</option><option>Rejected</option></select></div>
                   
-                  {/* JOB DESCRIPTION FIELD */}
                   <div className="col-span-2">
                     <label className={STYLES.label}>{t('jdLabel')}</label>
                     <textarea className={`${STYLES.input} h-32`} placeholder="Paste the job description or requirements here..." value={formData.jobDescription} onChange={e => setFormData({...formData, jobDescription: e.target.value})}></textarea>
                   </div>
 
-                  {/* INTERACTIVE CHECKLIST TILES */}
                   <div className="col-span-2">
                     <div className="flex justify-between items-center mb-2">
                       <label className={STYLES.label}>{t('checklist')}</label>
@@ -451,15 +491,7 @@ export default function App() {
                     </div>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                       {Object.keys(formData.steps).map(stepKey => (
-                        <div 
-                          key={stepKey} 
-                          onClick={() => handleChecklistChange(stepKey)} 
-                          className={`cursor-pointer p-3 rounded-lg border text-center transition-all duration-200 flex flex-col items-center gap-2
-                            ${formData.steps[stepKey] 
-                              ? 'bg-[#162A43] border-[#162A43] text-white dark:bg-[#BFA15F] dark:border-[#BFA15F] dark:text-[#162A43]' 
-                              : 'bg-gray-50 border-gray-200 text-gray-500 hover:bg-gray-100 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-400'
-                            }`}
-                        >
+                        <div key={stepKey} onClick={() => handleChecklistChange(stepKey)} className={`cursor-pointer p-3 rounded-lg border text-center transition-all duration-200 flex flex-col items-center gap-2 ${formData.steps[stepKey] ? 'bg-[#162A43] border-[#162A43] text-white dark:bg-[#BFA15F] dark:border-[#BFA15F] dark:text-[#162A43]' : 'bg-gray-50 border-gray-200 text-gray-500 hover:bg-gray-100 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-400'}`}>
                           {formData.steps[stepKey] ? <CheckCircle size={20} /> : <CheckSquare size={20} />}
                           <span className="text-[10px] font-bold uppercase">{stepKey.replace(/([A-Z])/g, ' $1').trim()}</span>
                         </div>
@@ -476,16 +508,7 @@ export default function App() {
            </div>
         )}
 
-        {/* DOC TOOLS MODAL */}
-        {isToolsOpen && selectedAppForTools && (
-          <DocToolsModal 
-            isOpen={isToolsOpen} 
-            onClose={() => setIsToolsOpen(false)} 
-            appData={selectedAppForTools}
-            t={t}
-          />
-        )}
-
+        {isToolsOpen && selectedAppForTools && <DocToolsModal isOpen={isToolsOpen} onClose={() => setIsToolsOpen(false)} appData={selectedAppForTools} t={t} />}
         {isSettingsOpen && <PreferencesModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} currentSettings={{ theme, language, emailEnabled }} onSave={handleSavePreferences} t={t} />}
         {isAboutOpen && <AboutModal onClose={() => setIsAboutOpen(false)} />}
         {isPrivacyOpen && <PrivacyModal onClose={() => setIsPrivacyOpen(false)} />}
@@ -507,122 +530,6 @@ export default function App() {
   );
 }
 
-// --- COMPONENTS ---
-
-const DocToolsModal = ({ isOpen, onClose, appData, t }) => {
-  const [activeTool, setActiveTool] = useState('resume');
-  const [generatedContent, setGeneratedContent] = useState('');
-
-  const generateResume = () => {
-    // SIMULATE AI TAILORING
-    // 1. Get JD Keywords
-    const jd = appData.jobDescription || "";
-    const keywords = MY_PROFILE.skills.filter(skill => jd.toLowerCase().includes(skill.toLowerCase()));
-    
-    let doc = `RESUME: ${MY_PROFILE.name}\n${MY_PROFILE.contact}\n\nSUMMARY:\n${MY_PROFILE.summary}\n\n`;
-    
-    if (keywords.length > 0) {
-      doc += `RELEVANT SKILLS (Tailored for ${appData.institution}):\n- ${keywords.join('\n- ')}\n\n`;
-    } else {
-      doc += `CORE COMPETENCIES:\n- ${MY_PROFILE.skills.join('\n- ')}\n\n`;
-    }
-
-    doc += `EXPERIENCE:\n${MY_PROFILE.experience.join('\n\n')}\n\nEDUCATION:\n${MY_PROFILE.education.join('\n')}`;
-    setGeneratedContent(doc);
-  };
-
-  const generateCoverLetter = () => {
-    let cl = COVER_LETTER_TEMPLATE;
-    cl = cl.replace('{{COMPANY_NAME}}', appData.institution);
-    cl = cl.replace('{{COMPANY_NAME}}', appData.institution); // twice
-    cl = cl.replace('{{POSITION_TITLE}}', appData.program);
-    cl = cl.replace('{{POSITION_TITLE}}', appData.program);
-    setGeneratedContent(cl);
-  };
-
-  const downloadPDF = () => {
-    const doc = new jsPDF();
-    const lines = doc.splitTextToSize(generatedContent, 180);
-    doc.text(lines, 10, 10);
-    doc.save(`${activeTool}_${appData.institution}.pdf`);
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[70] p-4 backdrop-blur-sm animate-fade-in">
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-4xl h-[80vh] overflow-hidden flex flex-col">
-        <div className="p-5 border-b dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-900">
-          <div>
-            <h3 className="font-bold text-lg dark:text-white flex items-center gap-2"><Wrench size={20}/> {t('tools')} for {appData.institution}</h3>
-            <p className="text-xs text-gray-500">AI-Assisted Document Generator</p>
-          </div>
-          <button onClick={onClose} className="dark:text-gray-400"><X size={20}/></button>
-        </div>
-        <div className="flex flex-1 overflow-hidden">
-          {/* SIDEBAR */}
-          <div className="w-64 bg-gray-100 dark:bg-gray-900 border-r dark:border-gray-700 p-4 flex flex-col gap-2">
-            <button 
-              onClick={() => { setActiveTool('resume'); setGeneratedContent(''); }}
-              className={`p-3 rounded text-left font-semibold flex items-center gap-2 ${activeTool === 'resume' ? 'bg-[#162A43] text-white' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-800'}`}
-            >
-              <DocumentIcon size={18}/> {t('resumeBuilder')}
-            </button>
-            <button 
-              onClick={() => { setActiveTool('coverletter'); setGeneratedContent(''); }}
-              className={`p-3 rounded text-left font-semibold flex items-center gap-2 ${activeTool === 'coverletter' ? 'bg-[#162A43] text-white' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-800'}`}
-            >
-              <PenTool size={18}/> {t('coverLetter')}
-            </button>
-            <div className="mt-auto pt-4 border-t dark:border-gray-700">
-              <p className="text-xs font-bold text-gray-500 uppercase mb-2">{t('viewJD')}</p>
-              <div className="text-xs text-gray-600 dark:text-gray-400 h-32 overflow-y-auto bg-white dark:bg-gray-800 p-2 rounded border dark:border-gray-700">
-                {appData.jobDescription || "No job description saved."}
-              </div>
-            </div>
-          </div>
-
-          {/* MAIN CONTENT */}
-          <div className="flex-1 p-6 overflow-y-auto bg-white dark:bg-gray-800">
-            {activeTool === 'resume' && (
-              <div className="space-y-4">
-                <div className="bg-blue-50 dark:bg-blue-900/30 p-4 rounded border border-blue-100 dark:border-blue-800">
-                  <h4 className="font-bold text-blue-800 dark:text-blue-200">AI Resume Tailor</h4>
-                  <p className="text-sm text-blue-700 dark:text-blue-300">This tool scans your saved Job Description and highlights matching skills from your profile to create a tailored resume.</p>
-                  <button onClick={generateResume} className="mt-3 bg-blue-600 text-white px-4 py-2 rounded font-bold text-sm hover:bg-blue-700">Generate Tailored Resume</button>
-                </div>
-                <textarea 
-                  className="w-full h-96 p-4 border dark:border-gray-700 rounded font-mono text-sm dark:bg-gray-900 dark:text-gray-300" 
-                  value={generatedContent} 
-                  onChange={(e) => setGeneratedContent(e.target.value)}
-                  placeholder="Click Generate to see your resume..."
-                ></textarea>
-              </div>
-            )}
-
-            {activeTool === 'coverletter' && (
-              <div className="space-y-4">
-                <div className="bg-green-50 dark:bg-green-900/30 p-4 rounded border border-green-100 dark:border-green-800">
-                  <h4 className="font-bold text-green-800 dark:text-green-200">Cover Letter Builder</h4>
-                  <p className="text-sm text-green-700 dark:text-green-300">Automatically inserts the company name and position into your standard template.</p>
-                  <button onClick={generateCoverLetter} className="mt-3 bg-green-600 text-white px-4 py-2 rounded font-bold text-sm hover:bg-green-700">Generate Cover Letter</button>
-                </div>
-                <textarea 
-                  className="w-full h-96 p-4 border dark:border-gray-700 rounded font-mono text-sm dark:bg-gray-900 dark:text-gray-300" 
-                  value={generatedContent} 
-                  onChange={(e) => setGeneratedContent(e.target.value)}
-                  placeholder="Click Generate to see your letter..."
-                ></textarea>
-              </div>
-            )}
-          </div>
-        </div>
-        <div className="p-4 border-t dark:border-gray-700 bg-gray-50 dark:bg-gray-900 flex justify-end">
-          <button onClick={downloadPDF} disabled={!generatedContent} className="bg-[#DB2B39] text-white px-6 py-2 rounded font-bold flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"><Download size={18}/> Download as PDF</button>
-        </div>
-      </div>
-    </div>
-  );
-};
-
 const StatCard = ({ label, value, icon, color }) => (
   <div className={`bg-white dark:bg-gray-800 p-5 rounded-lg border dark:border-gray-700 ${color} flex justify-between`}>
     <div><p className="text-xs text-gray-500 dark:text-gray-400 font-bold uppercase">{label}</p><p className="text-3xl font-bold text-[#162A43] dark:text-white">{value}</p></div>
@@ -630,53 +537,89 @@ const StatCard = ({ label, value, icon, color }) => (
   </div>
 );
 
+const DocToolsModal = ({ isOpen, onClose, appData, t }) => {
+  const [activeTool, setActiveTool] = useState('resume');
+  const [generatedContent, setGeneratedContent] = useState('');
+
+  const generateResume = () => {
+    const jd = appData.jobDescription || "";
+    const keywords = MY_PROFILE.skills.filter(skill => jd.toLowerCase().includes(skill.toLowerCase()));
+    let doc = `RESUME: ${MY_PROFILE.name}\n${MY_PROFILE.contact}\n\nSUMMARY:\n${MY_PROFILE.summary}\n\n`;
+    if (keywords.length > 0) doc += `RELEVANT SKILLS (Tailored for ${appData.institution}):\n- ${keywords.join('\n- ')}\n\n`;
+    else doc += `CORE COMPETENCIES:\n- ${MY_PROFILE.skills.join('\n- ')}\n\n`;
+    doc += `EXPERIENCE:\n${MY_PROFILE.experience.join('\n\n')}\n\nEDUCATION:\n${MY_PROFILE.education.join('\n')}`;
+    setGeneratedContent(doc);
+  };
+
+  const generateCoverLetter = () => {
+    let cl = COVER_LETTER_TEMPLATE.replace(/{{COMPANY_NAME}}/g, appData.institution).replace(/{{POSITION_TITLE}}/g, appData.program);
+    setGeneratedContent(cl);
+  };
+
+  const downloadPDF = () => {
+    if (!window.jspdf) {
+        const script = document.createElement('script');
+        script.src = "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js";
+        script.onload = () => {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            const lines = doc.splitTextToSize(generatedContent, 180);
+            doc.text(lines, 10, 10);
+            doc.save(`${activeTool}_${appData.institution}.pdf`);
+        };
+        document.body.appendChild(script);
+    } else {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        const lines = doc.splitTextToSize(generatedContent, 180);
+        doc.text(lines, 10, 10);
+        doc.save(`${activeTool}_${appData.institution}.pdf`);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[70] p-4 backdrop-blur-sm animate-fade-in">
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-4xl h-[80vh] overflow-hidden flex flex-col">
+        <div className="p-5 border-b dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-900">
+          <div><h3 className="font-bold text-lg dark:text-white flex items-center gap-2"><Wrench size={20}/> {t('tools')} for {appData.institution}</h3><p className="text-xs text-gray-500">AI-Assisted Document Generator</p></div>
+          <button onClick={onClose} className="dark:text-gray-400"><X size={20}/></button>
+        </div>
+        <div className="flex flex-1 overflow-hidden">
+          <div className="w-64 bg-gray-100 dark:bg-gray-900 border-r dark:border-gray-700 p-4 flex flex-col gap-2">
+            <button onClick={() => { setActiveTool('resume'); setGeneratedContent(''); }} className={`p-3 rounded text-left font-semibold flex items-center gap-2 ${activeTool === 'resume' ? 'bg-[#162A43] text-white' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-800'}`}><DocumentIcon size={18}/> {t('resumeBuilder')}</button>
+            <button onClick={() => { setActiveTool('coverletter'); setGeneratedContent(''); }} className={`p-3 rounded text-left font-semibold flex items-center gap-2 ${activeTool === 'coverletter' ? 'bg-[#162A43] text-white' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-800'}`}><PenTool size={18}/> {t('coverLetter')}</button>
+            <div className="mt-auto pt-4 border-t dark:border-gray-700"><p className="text-xs font-bold text-gray-500 uppercase mb-2">{t('viewJD')}</p><div className="text-xs text-gray-600 dark:text-gray-400 h-32 overflow-y-auto bg-white dark:bg-gray-800 p-2 rounded border dark:border-gray-700">{appData.jobDescription || "No job description saved."}</div></div>
+          </div>
+          <div className="flex-1 p-6 overflow-y-auto bg-white dark:bg-gray-800">
+            {activeTool === 'resume' && (<div className="space-y-4"><div className="bg-blue-50 dark:bg-blue-900/30 p-4 rounded border border-blue-100 dark:border-blue-800"><h4 className="font-bold text-blue-800 dark:text-blue-200">AI Resume Tailor</h4><p className="text-sm text-blue-700 dark:text-blue-300">This tool scans your saved Job Description and highlights matching skills from your profile to create a tailored resume.</p><button onClick={generateResume} className="mt-3 bg-blue-600 text-white px-4 py-2 rounded font-bold text-sm hover:bg-blue-700">Generate Tailored Resume</button></div><textarea className="w-full h-96 p-4 border dark:border-gray-700 rounded font-mono text-sm dark:bg-gray-900 dark:text-gray-300" value={generatedContent} onChange={(e) => setGeneratedContent(e.target.value)} placeholder="Click Generate to see your resume..."></textarea></div>)}
+            {activeTool === 'coverletter' && (<div className="space-y-4"><div className="bg-green-50 dark:bg-green-900/30 p-4 rounded border border-green-100 dark:border-green-800"><h4 className="font-bold text-green-800 dark:text-green-200">Cover Letter Builder</h4><p className="text-sm text-green-700 dark:text-green-300">Automatically inserts the company name and position into your standard template.</p><button onClick={generateCoverLetter} className="mt-3 bg-green-600 text-white px-4 py-2 rounded font-bold text-sm hover:bg-green-700">Generate Cover Letter</button></div><textarea className="w-full h-96 p-4 border dark:border-gray-700 rounded font-mono text-sm dark:bg-gray-900 dark:text-gray-300" value={generatedContent} onChange={(e) => setGeneratedContent(e.target.value)} placeholder="Click Generate to see your letter..."></textarea></div>)}
+          </div>
+        </div>
+        <div className="p-4 border-t dark:border-gray-700 bg-gray-50 dark:bg-gray-900 flex justify-end"><button onClick={downloadPDF} disabled={!generatedContent} className="bg-[#DB2B39] text-white px-6 py-2 rounded font-bold flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"><Download size={18}/> Download as PDF</button></div>
+      </div>
+    </div>
+  );
+};
+
 const PreferencesModal = ({ isOpen, onClose, currentSettings, onSave, t }) => {
   const [localTheme, setLocalTheme] = useState(currentSettings.theme);
   const [localLanguage, setLocalLanguage] = useState(currentSettings.language);
   const [localEmail, setLocalEmail] = useState(currentSettings.emailEnabled);
 
-  useEffect(() => {
-    if (isOpen) {
-      setLocalTheme(currentSettings.theme);
-      setLocalLanguage(currentSettings.language);
-      setLocalEmail(currentSettings.emailEnabled);
-    }
-  }, [isOpen, currentSettings]);
+  useEffect(() => { if (isOpen) { setLocalTheme(currentSettings.theme); setLocalLanguage(currentSettings.language); setLocalEmail(currentSettings.emailEnabled); } }, [isOpen, currentSettings]);
 
-  const handleSave = () => {
-    onSave({ theme: localTheme, language: localLanguage, emailEnabled: localEmail });
-    onClose();
-  };
-
+  const handleSave = () => { onSave({ theme: localTheme, language: localLanguage, emailEnabled: localEmail }); onClose(); };
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[70] p-4 backdrop-blur-sm animate-fade-in">
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-md overflow-hidden">
-        <div className="p-5 border-b dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-900">
-          <h3 className="font-bold text-lg dark:text-white flex items-center gap-2"><Settings size={20}/> {t('settings')}</h3>
-          <button onClick={onClose} className="dark:text-gray-400"><X size={20}/></button>
-        </div>
+        <div className="p-5 border-b dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-900"><h3 className="font-bold text-lg dark:text-white flex items-center gap-2"><Settings size={20}/> {t('settings')}</h3><button onClick={onClose} className="dark:text-gray-400"><X size={20}/></button></div>
         <div className="p-6 space-y-6">
-          <div className="flex justify-between items-center">
-            <div className="flex items-center gap-3">
-              {localTheme === 'light' ? <Sun size={20} className="text-orange-500"/> : <Moon size={20} className="text-blue-400"/>}
-              <span className="dark:text-gray-200 font-medium">{t('theme')}</span>
-            </div>
-            <button onClick={() => setLocalTheme(localTheme === 'light' ? 'dark' : 'light')} className="px-3 py-1 rounded bg-gray-200 dark:bg-gray-700 dark:text-white text-xs font-bold uppercase transition-colors hover:bg-gray-300 dark:hover:bg-gray-600">{localTheme === 'light' ? t('light') : t('dark')}</button>
-          </div>
-          <div className="flex justify-between items-center">
-            <div className="flex items-center gap-3"><Languages size={20} className="text-purple-500"/><span className="dark:text-gray-200 font-medium">{t('language')}</span></div>
-            <select value={localLanguage} onChange={(e) => setLocalLanguage(e.target.value)} className="p-1.5 rounded border dark:border-gray-600 dark:bg-gray-700 dark:text-white text-sm focus:ring-2 focus:ring-[#162A43]"><option value="en">{t('english')}</option><option value="fr">{t('french')}</option></select>
-          </div>
-          <div className="flex justify-between items-center">
-            <div className="flex items-center gap-3"><Mail size={20} className="text-red-500"/><span className="dark:text-gray-200 font-medium">{t('notifications')}</span></div>
-            <div className="relative inline-block w-10 mr-2 align-middle select-none transition duration-200 ease-in"><input type="checkbox" checked={localEmail} onChange={() => setLocalEmail(!localEmail)} className="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer top-0"/><label onClick={() => setLocalEmail(!localEmail)} className={`toggle-label block overflow-hidden h-6 rounded-full cursor-pointer ${localEmail ? 'bg-green-400' : 'bg-gray-300'}`}></label></div>
-          </div>
-          <div className="pt-4 border-t dark:border-gray-700 flex justify-end gap-3">
-            <button onClick={onClose} className={`px-4 py-2 rounded ${STYLES.btnOutline} text-sm`}>{t('cancel')}</button>
-            <button onClick={handleSave} className={`px-6 py-2 rounded font-bold text-sm ${STYLES.btnPrimary} flex items-center gap-2`}><Save size={16} /> {t('save')}</button>
-          </div>
+          <div className="flex justify-between items-center"><div className="flex items-center gap-3">{localTheme === 'light' ? <Sun size={20} className="text-orange-500"/> : <Moon size={20} className="text-blue-400"/>}<span className="dark:text-gray-200 font-medium">{t('theme')}</span></div><button onClick={() => setLocalTheme(localTheme === 'light' ? 'dark' : 'light')} className="px-3 py-1 rounded bg-gray-200 dark:bg-gray-700 dark:text-white text-xs font-bold uppercase transition-colors hover:bg-gray-300 dark:hover:bg-gray-600">{localTheme === 'light' ? t('light') : t('dark')}</button></div>
+          <div className="flex justify-between items-center"><div className="flex items-center gap-3"><Languages size={20} className="text-purple-500"/><span className="dark:text-gray-200 font-medium">{t('language')}</span></div><select value={localLanguage} onChange={(e) => setLocalLanguage(e.target.value)} className="p-1.5 rounded border dark:border-gray-600 dark:bg-gray-700 dark:text-white text-sm focus:ring-2 focus:ring-[#162A43]"><option value="en">{t('english')}</option><option value="fr">{t('french')}</option></select></div>
+          <div className="flex justify-between items-center"><div className="flex items-center gap-3"><Mail size={20} className="text-red-500"/><span className="dark:text-gray-200 font-medium">{t('notifications')}</span></div><div className="relative inline-block w-10 mr-2 align-middle select-none transition duration-200 ease-in"><input type="checkbox" checked={localEmail} onChange={() => setLocalEmail(!localEmail)} className="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer top-0"/><label onClick={() => setLocalEmail(!localEmail)} className={`toggle-label block overflow-hidden h-6 rounded-full cursor-pointer ${localEmail ? 'bg-green-400' : 'bg-gray-300'}`}></label></div></div>
+          <div className="pt-4 border-t dark:border-gray-700 flex justify-end gap-3"><button onClick={onClose} className={`px-4 py-2 rounded ${STYLES.btnOutline} text-sm`}>{t('cancel')}</button><button onClick={handleSave} className={`px-6 py-2 rounded font-bold text-sm ${STYLES.btnPrimary} flex items-center gap-2`}><Save size={16} /> {t('save')}</button></div>
         </div>
       </div>
     </div>
@@ -687,27 +630,8 @@ const AboutModal = ({ onClose }) => (
   <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[70] p-4 backdrop-blur-sm animate-fade-in">
     <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-lg overflow-hidden relative">
       <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-black dark:hover:text-white"><X size={24}/></button>
-      <div className="bg-[#162A43] p-8 text-center text-white">
-        <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center mx-auto mb-4 overflow-hidden p-1"><img src={ALU_SMALL_LOGO_URL} alt="ALU" className="w-full h-full object-cover rounded-full" /></div>
-        <h2 className="text-2xl font-bold">ALU Opportunity Tracker</h2>
-        <p className="text-gray-300 text-sm mt-2">Version 3.3.0</p>
-      </div>
-      <div className="p-8 space-y-6 dark:text-gray-300">
-        <div><h3 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wider mb-2">About</h3><p className="text-sm leading-relaxed">This platform helps ALU students and alumni organize their career journey.</p></div>
-        <div>
-          <h3 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wider mb-3">Developer</h3>
-          <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg border border-gray-100 dark:border-gray-600 flex items-center gap-4">
-            <div className="w-12 h-12 bg-[#162A43] rounded-full flex items-center justify-center text-white font-bold text-xl">D</div>
-            <div><p className="font-bold text-[#162A43] dark:text-[#BFA15F]">dumethode</p><p className="text-xs text-gray-500 dark:text-gray-400">Lead Developer</p></div>
-          </div>
-          <div className="flex gap-4 mt-4 justify-center">
-             <a href="https://twitter.com/dumethode" target="_blank" rel="noopener noreferrer" className="p-2 text-gray-400 hover:text-[#1DA1F2] transition-colors"><Twitter size={20} /></a>
-             <a href="https://github.com/dumethode" target="_blank" rel="noopener noreferrer" className="p-2 text-gray-400 hover:text-[#162A43] dark:hover:text-white transition-colors"><Github size={20} /></a>
-             <a href="https://www.linkedin.com/in/dumethode/" target="_blank" rel="noopener noreferrer" className="p-2 text-gray-400 hover:text-[#0077B5] transition-colors"><Linkedin size={20} /></a>
-             <a href="https://www.instagram.com/dumethode/" target="_blank" rel="noopener noreferrer" className="p-2 text-gray-400 hover:text-[#E1306C] transition-colors"><Instagram size={20} /></a>
-          </div>
-        </div>
-      </div>
+      <div className="bg-[#162A43] p-8 text-center text-white"><div className="w-20 h-20 bg-white rounded-full flex items-center justify-center mx-auto mb-4 overflow-hidden p-1"><img src={ALU_SMALL_LOGO_URL} alt="ALU" className="w-full h-full object-cover rounded-full" /></div><h2 className="text-2xl font-bold">ALU Opportunity Tracker</h2><p className="text-gray-300 text-sm mt-2">Version 3.3.0</p></div>
+      <div className="p-8 space-y-6 dark:text-gray-300"><div><h3 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wider mb-2">About</h3><p className="text-sm leading-relaxed">Track scholarships, jobs, and deadlines in one secure dashboard.</p></div><div><h3 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wider mb-3">Developer</h3><div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg border border-gray-100 dark:border-gray-600 flex items-center gap-4"><div className="w-12 h-12 bg-[#162A43] rounded-full flex items-center justify-center text-white font-bold text-xl">D</div><div><p className="font-bold text-[#162A43] dark:text-[#BFA15F]">dumethode</p><p className="text-xs text-gray-500 dark:text-gray-400">Lead Developer</p></div></div><div className="flex gap-4 mt-4 justify-center"><a href="https://twitter.com/dumethode" target="_blank" rel="noopener noreferrer" className="p-2 text-gray-400 hover:text-[#1DA1F2] transition-colors"><Twitter size={20} /></a><a href="https://github.com/dumethode" target="_blank" rel="noopener noreferrer" className="p-2 text-gray-400 hover:text-[#162A43] dark:hover:text-white transition-colors"><Github size={20} /></a><a href="https://www.linkedin.com/in/dumethode/" target="_blank" rel="noopener noreferrer" className="p-2 text-gray-400 hover:text-[#0077B5] transition-colors"><Linkedin size={20} /></a><a href="https://www.instagram.com/dumethode/" target="_blank" rel="noopener noreferrer" className="p-2 text-gray-400 hover:text-[#E1306C] transition-colors"><Instagram size={20} /></a></div></div></div>
     </div>
   </div>
 );
@@ -716,7 +640,7 @@ const PrivacyModal = ({ onClose }) => (
   <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[70] p-4 backdrop-blur-sm animate-fade-in">
     <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-lg overflow-hidden relative flex flex-col max-h-[80vh]">
       <div className="p-5 border-b dark:border-gray-700 flex justify-between items-center"><h3 className="font-bold text-lg dark:text-white flex items-center gap-2"><Shield size={20}/> Privacy Policy</h3><button onClick={onClose} className="dark:text-white"><X size={20}/></button></div>
-      <div className="p-6 overflow-y-auto text-sm text-gray-600 dark:text-gray-300 space-y-4 leading-relaxed"><p><strong>Last Updated: November 2025</strong></p><p>We collect limited personal information...</p></div>
+      <div className="p-6 overflow-y-auto text-sm text-gray-600 dark:text-gray-300 space-y-4 leading-relaxed"><p><strong>Last Updated: November 2025</strong></p><p>We collect limited personal information including your name, email address, and phone number during registration. We also store the application data you voluntarily input (scholarship details, deadlines, notes).</p><h4 className="font-bold text-[#162A43] dark:text-white">2. Use of Data</h4><p>Your data is used exclusively to provide the tracking service, authenticate your identity, and send requested notifications. We do not sell or share your personal data with third parties.</p><h4 className="font-bold text-[#162A43] dark:text-white">3. Data Security</h4><p>All data is stored securely using Google Firebase Firestore with encrypted transmission. User authentication is handled via Firebase Auth to ensure secure access.</p><h4 className="font-bold text-[#162A43] dark:text-white">4. Your Rights</h4><p>You have the right to access, edit, or delete your data at any time. Deleting an application removes it permanently from our database.</p></div>
     </div>
   </div>
 );
@@ -725,7 +649,7 @@ const TermsModal = ({ onClose }) => (
   <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[70] p-4 backdrop-blur-sm animate-fade-in">
     <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-lg overflow-hidden relative flex flex-col max-h-[80vh]">
       <div className="p-5 border-b dark:border-gray-700 flex justify-between items-center"><h3 className="font-bold text-lg dark:text-white flex items-center gap-2"><FileText size={20}/> Terms of Service</h3><button onClick={onClose} className="dark:text-white"><X size={20}/></button></div>
-      <div className="p-6 overflow-y-auto text-sm text-gray-600 dark:text-gray-300 space-y-4 leading-relaxed"><p><strong>Last Updated: November 2025</strong></p><p>By accessing or using ALU Opportunity Tracker...</p></div>
+      <div className="p-6 overflow-y-auto text-sm text-gray-600 dark:text-gray-300 space-y-4 leading-relaxed"><p><strong>Last Updated: November 2025</strong></p><p>By accessing or using ALU Opportunity Tracker, you agree to be bound by these Terms.</p><h4 className="font-bold text-[#162A43] dark:text-white">1. Acceptance of Terms</h4><p>By creating an account, you confirm that you will use this service for lawful purposes related to tracking educational and professional opportunities.</p><h4 className="font-bold text-[#162A43] dark:text-white">2. User Accounts</h4><p>You are responsible for maintaining the confidentiality of your password and account. You agree to notify us immediately of any unauthorized use of your account.</p><h4 className="font-bold text-[#162A43] dark:text-white">3. Content Ownership</h4><p>The application data you enter belongs to you. The platform code and design remain the intellectual property of the developer.</p><h4 className="font-bold text-[#162A43] dark:text-white">4. Termination</h4><p>We may terminate or suspend access to our service immediately, without prior notice, for any reason whatsoever, including without limitation if you breach the Terms.</p></div>
     </div>
   </div>
 );
