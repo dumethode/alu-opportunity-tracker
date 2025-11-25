@@ -1,0 +1,20 @@
+mutation CreateApplication($userId: UUID!, $applicationType: String!, $createdAt: Timestamp!, $deadline: Timestamp!, $link: String, $notes: String, $organizationName: String, $priority: String, $status: String!, $title: String!, $updatedAt: Timestamp!) @auth(level: USER) {
+  application_insert(data: {userId: $userId, applicationType: $applicationType, createdAt: $createdAt, deadline: $deadline, link: $link, notes: $notes, organizationName: $organizationName, priority: $priority, status: $status, title: $title, updatedAt: $updatedAt})
+}
+
+query GetApplications @auth(level: USER) {
+  applications {
+    id
+    title
+    status
+    deadline
+  }
+}
+
+mutation UpdateApplicationStatus($id: UUID!, $status: String!) @auth(level: USER) {
+  application_update(id: $id, data: {status: $status, updatedAt_expr: "request.time"})
+}
+
+mutation DeleteApplication($id: UUID!) @auth(level: USER) {
+  application_delete(id: $id)
+}

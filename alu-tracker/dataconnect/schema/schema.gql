@@ -1,0 +1,46 @@
+type User @table {
+  displayName: String!
+  email: String!
+  createdAt: Timestamp!
+  photoUrl: String
+  bio: String
+}
+
+type Application @table {
+  user: User!
+  title: String!
+  applicationType: String!
+  status: String!
+  deadline: Timestamp!
+  createdAt: Timestamp!
+  updatedAt: Timestamp!
+  organizationName: String
+  link: String
+  notes: String
+  priority: String
+}
+
+type Document @table {
+  user: User!
+  fileName: String!
+  fileUrl: String!
+  documentType: String!
+  createdAt: Timestamp!
+  description: String
+}
+
+type ApplicationDocument @table(key: ["application", "document"]) {
+  application: Application!
+  document: Document!
+  createdAt: Timestamp!
+  notes: String
+}
+
+type Contact @table {
+  application: Application!
+  name: String!
+  email: String
+  phoneNumber: String
+  role: String
+  notes: String
+}
